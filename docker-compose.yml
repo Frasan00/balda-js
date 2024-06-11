@@ -1,0 +1,30 @@
+version: '3'
+services:
+  postgres:
+    image: postgres:14
+    container_name: framework-postgres
+    restart: unless-stopped
+    tty: true
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: postgres
+    networks:
+      - local-network
+
+  redis:
+    image: redis:7.0
+    container_name: framework-redis
+    restart: unless-stopped
+    tty: true
+    ports:
+      - '6379:6379'
+    command: redis-server --requirepass root
+    networks:
+      - local-network
+
+networks:
+  local-network:
+    driver: bridge

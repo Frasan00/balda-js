@@ -1,0 +1,19 @@
+{
+    "compilerOptions": {
+      "esModuleInterop": true,
+      "forceConsistentCasingInFileNames": true,
+      "module": "commonjs",
+      "outDir": "lib",
+      "rootDirs": ["src", "test"],
+      "skipLibCheck": true,
+      "strict": true,
+      "target": "ES2020",
+      "useDefineForClassFields": true,
+      "moduleResolution": "node",
+      "emitDecoratorMetadata": true,
+      "experimentalDecorators": true,
+      "strictPropertyInitialization": false,
+    },
+    "include": ["src/**/*.ts", "test/**/*.ts"],
+    "exclude": ["node_modules", "lib", "dist", "build"]
+  }
