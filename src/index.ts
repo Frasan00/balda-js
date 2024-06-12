@@ -2,6 +2,16 @@ import Logger from '../Logger';
 import Server from './Server/Server';
 import * as typeorm from 'typeorm';
 import 'reflect-metadata';
+import dotenv from 'dotenv';
+import express from './Server/Customization';
+dotenv.config();
+
+const type = (process.env.DB_TYPE as 'mysql' | 'mariadb') || 'postgres';
+const host = process.env.DB_HOST as string;
+const port = Number(process.env.DB_PORT);
+const username = process.env.DB_USERNAME as string;
+const password = process.env.DB_PASSWORD as string;
+const database = process.env.DB_DATABASE as string;
 
 @typeorm.Entity()
 class User extends typeorm.BaseEntity {
@@ -17,10 +27,34 @@ class User extends typeorm.BaseEntity {
     port: 80,
     host: '0.0.0.0',
     services: {
-      sql: true,
-      redis: true,
+      sql: {
+        type,
+        host,
+        port,
+        username,
+        password,
+        database,
+        entities: [User],
+        logging: true,
+        synchronize: true,
+      },
+      redis: {
+        url: process.env.REDIS_URL as string,
+        password: process.env.REDIS_PASSWORD as string,
+      },
+      // smtp: {
+      //   host: process.env.SMTP_HOST as string,
+      //   port: Number(process.env.SMTP_PORT),
+      //   auth: {
+      //     user: process.env.SMTP_USER as string,
+      //     pass: process.env.SMTP_PASSWORD as string,
+      //   },
+      //   from: process.env.SMTP_FROM as string,
+      // },
+      mongo: {
+        url: process.env.MONGO_URL as string,
+      },
     },
-    entities: [User],
     onServiceStartUp: {
       sql: async () => {
         Logger.info('SQL Connected');
@@ -28,22 +62,35 @@ class User extends typeorm.BaseEntity {
       redis: async () => {
         Logger.info('Redis Connected');
       },
+      mongo: async () => {
+        Logger.info('Mongo Connected');
+      },
+      smtp: async () => {
+        Logger.info('SMTP Connected');
+      },
     },
   });
 
   server.registerGlobalMiddleware(async (req, res, next) => {
-    console.log('Daje');
+    req.user = await server.sql.getRepository(User).findOneByOrFail({ id: 1 });
     next();
+  });
+
+  server.registerMiddleware({
+    name: 'log',
+    handler: (req, res, next: express.NextFunction) => {
+      console.log('Fine until now');
+      next();
+    },
   });
 
   server.makeCRUD(User);
   server.customizeIndexCRUD(User, {
-    beforeFetch: async (_req) => {
-      console.log('ROMA MIA ROMA BELLA DAJEEEEEE');
+    afterFetch: async (req, data, res) => {
+      const user = req.getUser<User>();
+      res.ok('User retrieved, ' + JSON.stringify(user));
     },
-    afterFetch: async (_req, _data, res) => {
-      res.internalServerError('Qualcosa è andato storto');
-    },
+    middlewares: ['log'],
   });
 
   server.start(() => Logger.info('Server started on port ' + server.port));
@@ -51,4 +98,6 @@ class User extends typeorm.BaseEntity {
 
 export default {
   Logger,
+  Server,
+  createServer: Server.create,
 };

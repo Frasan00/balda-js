@@ -14,12 +14,12 @@ export type IndexType<T extends typeorm.BaseEntity> = {
   beforeFetch: (req: express.Request) => Promise<any>;
   duringFetch: (
     req: express.Request,
-    queryBuilder: () => typeorm.SelectQueryBuilder<T>,
+    selectQueryBuilder: () => typeorm.SelectQueryBuilder<T>,
     beforeFetchData: any,
     res: express.Response
   ) => Promise<T[]>;
   afterFetch: (req: express.Request, duringFetchData: T[], res: express.Response) => Promise<void>;
-  middlewares?: string[];
+  middlewares: string[];
 };
 
 export type ShowType<T extends typeorm.BaseEntity> = {
@@ -28,12 +28,12 @@ export type ShowType<T extends typeorm.BaseEntity> = {
   beforeFetch: (req: express.Request) => Promise<any>;
   duringFetch: (
     req: express.Request,
-    queryBuilder: typeorm.SelectQueryBuilder<T>,
+    selectQueryBuilder: () => typeorm.SelectQueryBuilder<T>,
     beforeFetchData: any,
     res: express.Response
   ) => Promise<T>;
   afterFetch: (req: express.Request, duringFetchData: T, res: express.Response) => Promise<void>;
-  middlewares?: string[];
+  middlewares: string[];
 };
 
 export type StoreType<T extends typeorm.BaseEntity> = {
@@ -42,34 +42,26 @@ export type StoreType<T extends typeorm.BaseEntity> = {
   beforeCreate: (req: express.Request) => Promise<any>;
   duringCreate: (
     req: express.Request,
-    queryBuilder: typeorm.SelectQueryBuilder<T>,
+    insertQueryBuilder: () => typeorm.Repository<T>,
     beforeCreateData: any,
     res: express.Response
-  ) => Promise<T> | Promise<T[]>;
-  afterCreate: (
-    req: express.Request,
-    duringCreateData: T | T[],
-    res: express.Response
-  ) => Promise<void>;
-  middlewares?: string[];
+  ) => Promise<T>;
+  afterCreate: (req: express.Request, duringCreateData: T, res: express.Response) => Promise<void>;
+  middlewares: string[];
 };
 
 export type UpdateType<T extends typeorm.BaseEntity> = {
   path: string;
-  method: 'put' | 'patch';
+  method: 'patch';
   beforeUpdate: (req: express.Request) => Promise<any>;
   duringUpdate: (
     req: express.Request,
-    queryBuilder: typeorm.SelectQueryBuilder<T>,
+    updateQueryBuilder: () => typeorm.Repository<T>,
     beforeUpdateData: any,
     res: express.Response
-  ) => Promise<T> | Promise<T[]>;
-  afterUpdate: (
-    req: express.Request,
-    duringUpdateData: T | T[],
-    res: express.Response
-  ) => Promise<void>;
-  middlewares?: string[];
+  ) => Promise<T>;
+  afterUpdate: (req: express.Request, duringUpdateData: T, res: express.Response) => Promise<void>;
+  middlewares: string[];
 };
 
 export type DeleteType<T extends typeorm.BaseEntity> = {
@@ -78,14 +70,10 @@ export type DeleteType<T extends typeorm.BaseEntity> = {
   beforeDelete: (req: express.Request) => Promise<any>;
   duringDelete: (
     req: express.Request,
-    queryBuilder: typeorm.SelectQueryBuilder<T>,
+    deleteQueryBuilder: () => typeorm.Repository<T>,
     beforeDeleteData: any,
     res: express.Response
-  ) => Promise<T> | Promise<T[]>;
-  afterDelete: (
-    req: express.Request,
-    duringDeleteData: T | T[],
-    res: express.Response
-  ) => Promise<void>;
-  middlewares?: string[];
+  ) => Promise<T>;
+  afterDelete: (req: express.Request, duringDeleteData: T, res: express.Response) => Promise<void>;
+  middlewares: string[];
 };

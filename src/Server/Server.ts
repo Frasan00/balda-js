@@ -3,37 +3,62 @@ import { ParamsDictionary } from 'express-serve-static-core';
 import QueryString from 'qs';
 import ServerOptions from './ServerTypes';
 import cors from 'cors';
-import env from 'envitron';
-import nodemailer from 'nodemailer';
 import typeorm, { DataSource } from 'typeorm';
 import mongoose from 'mongoose';
 import redis from 'redis';
 import { ServicesType, parseServices } from './ServerUtils';
-import { CRUDType, IndexType } from '../CRUD/CrudTypes';
+import {
+  CRUDType,
+  DeleteType,
+  IndexType,
+  ShowType,
+  StoreType,
+  UpdateType,
+} from '../CRUD/CrudTypes';
 import { CrudTypeEnum, makeBaseCruds } from '../CRUD/Crud';
-import { EditIndexType } from '../CRUD/EditCrudTypes';
+import {
+  EditDeleteType,
+  EditIndexType,
+  EditShowType,
+  EditStoreType,
+  EditUpdateType,
+} from '../CRUD/EditCrudTypes';
+import Mailer from '../Mailer/Mailer';
 
 export default class Server {
   protected app: express.Application;
   protected services: ServerOptions['services'];
-  public middlewares: Record<
-    string,
-    (req: express.Request, res: express.Response, next: express.NextFunction) => Promise<void>
-  >;
+  public middlewares: Record<string, express.RequestHandler>;
   protected cruds: Map<new () => typeorm.BaseEntity, Record<string, CRUDType<typeorm.BaseEntity>>>;
   public port: number;
   public host: string;
-  public mailer: nodemailer.Transporter;
+  public mailer: Mailer;
   public sql: DataSource;
   public redisClient: redis.RedisClientType;
   public mongoClient: mongoose.Mongoose;
 
+  private constructor(services: ServicesType, serverOptions: ServerOptions) {
+    this.app = serverOptions?.expressInstance || express();
+    this.port = serverOptions.port;
+    this.host = serverOptions.host;
+    this.cruds = new Map();
+    this.services = {
+      sql: serverOptions?.services?.sql,
+      redis: serverOptions?.services?.redis,
+      mongo: serverOptions?.services?.mongo,
+      smtp: serverOptions?.services?.smtp,
+      auth: serverOptions?.services?.auth,
+    };
+
+    this.mailer = services.mailer;
+    this.sql = services.datasource;
+    this.redisClient = services.redisClient as redis.RedisClientType;
+    this.mongoClient = services.mongoClient;
+    this.middlewares = {};
+  }
+
   public static async create(serverOptions?: ServerOptions): Promise<Server> {
-    const services = await parseServices(
-      serverOptions?.services,
-      serverOptions?.onServiceStartUp,
-      serverOptions?.entities
-    );
+    const services = await parseServices(serverOptions?.services, serverOptions?.onServiceStartUp);
     const server = new Server(
       {
         datasource: services.datasource,
@@ -41,29 +66,10 @@ export default class Server {
         mongoClient: services.mongoClient,
         mailer: services.mailer,
       },
-      serverOptions || {}
+      serverOptions || { port: 80, host: '0.0.0.0' }
     );
 
     return server;
-  }
-
-  private constructor(services: ServicesType, serverOptions?: ServerOptions) {
-    this.app = serverOptions?.expressInstance || express();
-    this.port = serverOptions?.port || (env.getEnv('PORT', 80) as number);
-    this.host = serverOptions?.host || (env.getEnv('HOST', '0.0.0.0') as string);
-    this.cruds = new Map();
-    this.services = {
-      sql: serverOptions?.services?.sql ?? false,
-      redis: serverOptions?.services?.redis ?? false,
-      mongo: serverOptions?.services?.mongo ?? false,
-      smtp: serverOptions?.services?.smtp ?? false,
-      auth: serverOptions?.services?.auth ?? false,
-    };
-
-    this.mailer = services.mailer;
-    this.sql = services.datasource;
-    this.redisClient = services.redisClient;
-    this.mongoClient = services.mongoClient;
   }
 
   public start(cb?: () => void) {
@@ -75,13 +81,7 @@ export default class Server {
    * @param handler
    * @returns
    */
-  public async registerGlobalMiddleware(
-    handler: (
-      req: express.Request,
-      res: express.Response,
-      next: express.NextFunction
-    ) => Promise<void>
-  ): Promise<void> {
+  public async registerGlobalMiddleware(handler: express.RequestHandler): Promise<void> {
     this.app.use(handler);
   }
 
@@ -91,28 +91,26 @@ export default class Server {
    * @param name
    * @returns
    */
-  public async registerMiddleware(
-    handler: (
-      req: express.Request,
-      res: express.Response,
-      next: express.NextFunction
-    ) => Promise<void>,
-    name?: string
-  ): Promise<void> {
-    if (name && this.middlewares[name]) {
-      throw new Error(`Middleware with name ${name} already exists`);
+  public async registerMiddleware(handlerData: {
+    handler: express.RequestHandler;
+    name?: string;
+  }): Promise<void> {
+    console.log(this.middlewares);
+
+    if (handlerData.name && this.middlewares.hasOwnProperty(handlerData.name)) {
+      throw new Error(`Middleware with name ${handlerData.name} already exists`);
     }
 
-    if (name) {
-      this.middlewares[name] = handler;
+    if (handlerData.name) {
+      this.middlewares[handlerData.name] = handlerData.handler;
       return;
     }
 
-    if (this.middlewares[handler.name]) {
-      throw new Error(`Middleware with name ${handler.name} already exists`);
+    if (this.middlewares[handlerData.handler.name]) {
+      throw new Error(`Middleware with name ${handlerData.handler.name} already exists`);
     }
 
-    this.middlewares[handler.name] = handler;
+    this.middlewares[handlerData.handler.name] = handlerData.handler;
   }
 
   /**
@@ -131,8 +129,8 @@ export default class Server {
   }
 
   /**
-   * @description - Customize the index CRUD operations for a given entity with custom hooks
-   * @param type @description Hook to customize the base CRUD operations
+   * @description - Customize the index CRUD operation for a given entity with custom hooks
+   * @param type Hook to customize the base CRUD operations
    */
   public customizeIndexCRUD<T extends typeorm.BaseEntity>(
     entity: new () => T,
@@ -165,6 +163,154 @@ export default class Server {
     );
   }
 
+  /**
+   * @description - Customize the show CRUD operation for a given entity with custom hooks
+   * @param type Hook to customize the base CRUD operations
+   */
+  public customizeShowCRUD<T extends typeorm.BaseEntity>(
+    entity: new () => T,
+    editShowCrud: EditShowType<T>
+  ) {
+    const baseCrud = this.cruds.get(entity);
+    if (!baseCrud) {
+      throw new Error(
+        `CRUD operations for entity ${entity.name} not found, are you sure you created them with server.makeCRUD?`
+      );
+    }
+
+    const showCrud = baseCrud['showCrud'] as ShowType<typeorm.BaseEntity>;
+    this.cruds.set(entity, {
+      ...baseCrud,
+      showCrud: {
+        ...showCrud,
+        beforeFetch: editShowCrud.beforeFetch || showCrud.beforeFetch,
+        duringFetch: editShowCrud.duringFetch || showCrud.duringFetch,
+        afterFetch: editShowCrud.afterFetch || showCrud.afterFetch,
+        middlewares: editShowCrud.middlewares?.length
+          ? editShowCrud.middlewares
+          : showCrud.middlewares,
+      } as ShowType<typeorm.BaseEntity>,
+    });
+
+    this.updateCRUDRoutes<typeorm.BaseEntity>(
+      this.cruds.get(entity) as Record<string, CRUDType<typeorm.BaseEntity>>,
+      entity
+    );
+  }
+
+  /**
+   * @description - Customize the store CRUD operation for a given entity with custom hooks
+   * @param type Hook to customize the base CRUD operations
+   */
+  public customizeStoreCRUD<T extends typeorm.BaseEntity>(
+    entity: new () => T,
+    editStoreCrud: EditStoreType<T>
+  ) {
+    const baseCrud = this.cruds.get(entity);
+    if (!baseCrud) {
+      throw new Error(
+        `CRUD operations for entity ${entity.name} not found, are you sure you created them with server.makeCRUD?`
+      );
+    }
+
+    const storeCrud = baseCrud['storeCrud'] as StoreType<typeorm.BaseEntity>;
+    this.cruds.set(entity, {
+      ...baseCrud,
+      storeCrud: {
+        ...storeCrud,
+        beforeFetch: editStoreCrud.beforeCreate || storeCrud.beforeCreate,
+        duringFetch: editStoreCrud.duringCreate || storeCrud.duringCreate,
+        afterFetch: editStoreCrud.afterCreate || storeCrud.afterCreate,
+        middlewares: editStoreCrud.middlewares?.length
+          ? editStoreCrud.middlewares
+          : storeCrud.middlewares,
+      } as StoreType<typeorm.BaseEntity>,
+    });
+
+    this.updateCRUDRoutes<typeorm.BaseEntity>(
+      this.cruds.get(entity) as Record<string, CRUDType<typeorm.BaseEntity>>,
+      entity
+    );
+  }
+
+  /**
+   * @description - Customize the update CRUD operation for a given entity with custom hooks
+   * @param type Hook to customize the base CRUD operations
+   */
+  public customizeUpdateCRUD<T extends typeorm.BaseEntity>(
+    entity: new () => T,
+    editUpdateCrud: EditUpdateType<T>
+  ) {
+    const baseCrud = this.cruds.get(entity);
+    if (!baseCrud) {
+      throw new Error(
+        `CRUD operations for entity ${entity.name} not found, are you sure you created them with server.makeCRUD?`
+      );
+    }
+
+    const updateCrud = baseCrud['updateCrud'] as UpdateType<typeorm.BaseEntity>;
+    this.cruds.set(entity, {
+      ...baseCrud,
+      updateCrud: {
+        ...updateCrud,
+        beforeFetch: editUpdateCrud.beforeUpdate || updateCrud.beforeUpdate,
+        duringFetch: editUpdateCrud.duringUpdate || updateCrud.duringUpdate,
+        afterFetch: editUpdateCrud.afterUpdate || updateCrud.afterUpdate,
+        middlewares: editUpdateCrud.middlewares?.length
+          ? editUpdateCrud.middlewares
+          : updateCrud.middlewares,
+      } as UpdateType<typeorm.BaseEntity>,
+    });
+
+    this.updateCRUDRoutes<typeorm.BaseEntity>(
+      this.cruds.get(entity) as Record<string, CRUDType<typeorm.BaseEntity>>,
+      entity
+    );
+  }
+
+  /**
+   * @description - Customize the delete CRUD operation for a given entity with custom hooks
+   * @param type Hook to customize the base CRUD operations
+   */
+  public customizeDeleteCRUD<T extends typeorm.BaseEntity>(
+    entity: new () => T,
+    editDeleteCrud: EditDeleteType<T>
+  ) {
+    const baseCrud = this.cruds.get(entity);
+    if (!baseCrud) {
+      throw new Error(
+        `CRUD operations for entity ${entity.name} not found, are you sure you created them with server.makeCRUD?`
+      );
+    }
+
+    const deleteCrud = baseCrud['deleteCrud'] as DeleteType<typeorm.BaseEntity>;
+    this.cruds.set(entity, {
+      ...baseCrud,
+      deleteCrud: {
+        ...deleteCrud,
+        beforeFetch: editDeleteCrud.beforeDelete || deleteCrud.beforeDelete,
+        duringFetch: editDeleteCrud.duringDelete || deleteCrud.duringDelete,
+        afterFetch: editDeleteCrud.afterDelete || deleteCrud.afterDelete,
+        middlewares: editDeleteCrud.middlewares?.length
+          ? editDeleteCrud.middlewares
+          : deleteCrud.middlewares,
+      } as DeleteType<typeorm.BaseEntity>,
+    });
+
+    this.updateCRUDRoutes<typeorm.BaseEntity>(
+      this.cruds.get(entity) as Record<string, CRUDType<typeorm.BaseEntity>>,
+      entity
+    );
+  }
+
+  public rawExpressApp() {
+    return this.app;
+  }
+
+  public router(): express.Router {
+    return express.Router();
+  }
+
   public use(
     ...handlers: express.RequestHandler<
       ParamsDictionary,
@@ -173,12 +319,12 @@ export default class Server {
       QueryString.ParsedQs,
       Record<string, any>
     >[]
-  ) {
-    this.app.use(...handlers);
+  ): express.Application {
+    return this.app.use(...handlers);
   }
 
-  public useCors(corsOptions?: cors.CorsOptions) {
-    this.app.use(cors(corsOptions));
+  public useCors(corsOptions?: cors.CorsOptions): express.Application {
+    return this.app.use(cors(corsOptions));
   }
 
   protected registerCRUDRoutes<T extends typeorm.BaseEntity>(
@@ -186,14 +332,7 @@ export default class Server {
     entity: new () => typeorm.BaseEntity
   ): void {
     for (const [key, crud] of Object.entries(cruds)) {
-      const middlewares =
-        crud.middlewares?.map((middleware) => {
-          if (!this.middlewares[middleware]) {
-            throw new Error(`Middleware ${middleware} not found in the server`);
-          }
-
-          return this.middlewares[middleware];
-        }) ?? [];
+      const middlewares = this.parseMiddlewares(crud.middlewares);
 
       switch (key) {
         case CrudTypeEnum.indexCrud:
@@ -212,6 +351,80 @@ export default class Server {
               await indexCrud.afterFetch(req, data, res);
             }
           );
+          break;
+
+        case CrudTypeEnum.showCrud:
+          const showCrud = crud as ShowType<T>;
+          this.app.get(
+            showCrud.path,
+            [...middlewares],
+            async (req: express.Request, res: express.Response) => {
+              const beforeFetchData = await showCrud.beforeFetch(req);
+              const data = await showCrud.duringFetch(
+                req,
+                () => this.sql.getRepository(entity as new () => T).createQueryBuilder(),
+                beforeFetchData,
+                res
+              );
+              await showCrud.afterFetch(req, data, res);
+            }
+          );
+          break;
+
+        case CrudTypeEnum.storeCrud:
+          const postCrud = crud as StoreType<T>;
+          this.app.post(
+            crud.path,
+            [...middlewares],
+            async (req: express.Request, res: express.Response) => {
+              const beforeCreateData = await postCrud.beforeCreate(req);
+              const data = await postCrud.duringCreate(
+                req,
+                () => this.sql.getRepository(entity as new () => T),
+                beforeCreateData,
+                res
+              );
+              await postCrud.afterCreate(req, data, res);
+            }
+          );
+          break;
+
+        case CrudTypeEnum.updateCrud:
+          const updateCrud = crud as UpdateType<T>;
+          this.app.put(
+            crud.path,
+            [...middlewares],
+            async (req: express.Request, res: express.Response) => {
+              const beforeUpdateData = await updateCrud.beforeUpdate(req);
+              const data = await updateCrud.duringUpdate(
+                req,
+                () => this.sql.getRepository(entity as new () => T),
+                beforeUpdateData,
+                res
+              );
+              await updateCrud.afterUpdate(req, data, res);
+            }
+          );
+          break;
+
+        case CrudTypeEnum.deleteCrud:
+          const deleteCrud = crud as UpdateType<T>;
+          this.app.delete(
+            crud.path,
+            [...middlewares],
+            async (req: express.Request, res: express.Response) => {
+              const beforeDeleteData = await deleteCrud.beforeUpdate(req);
+              await deleteCrud.duringUpdate(
+                req,
+                () => this.sql.getRepository(entity as new () => T),
+                beforeDeleteData,
+                res
+              );
+            }
+          );
+          break;
+
+        default:
           break;
       }
     }
@@ -222,23 +435,15 @@ export default class Server {
     entity: new () => typeorm.BaseEntity
   ): void {
     for (const [key, crud] of Object.entries(cruds)) {
-      const middlewares =
-        crud.middlewares?.map((middleware) => {
-          if (!Object.keys(this.middlewares || {}).includes(middleware)) {
-            throw new Error(`Middleware ${middleware} not found in the server`);
-          }
-
-          return this.middlewares[middleware];
-        }) ?? [];
+      const middlewares = this.parseMiddlewares(crud.middlewares);
 
       switch (key) {
         case CrudTypeEnum.indexCrud:
           const indexCrud = crud as IndexType<T>;
-
-          this.app._router.stack = this.app._router.stack.filter(
-            (layer: any) =>
-              layer.route?.path !== indexCrud.path || layer.route?.methods.get !== true
-          );
+          const newStack = this.removeRouteByMethodAndPath(this.app, 'GET', indexCrud.path);
+          if (newStack) {
+            this.app._router.stack = newStack;
+          }
 
           this.app.get(
             indexCrud.path,
@@ -255,7 +460,132 @@ export default class Server {
             }
           );
           break;
+
+        case CrudTypeEnum.showCrud:
+          const showCrud = crud as ShowType<T>;
+          const newStackShow = this.removeRouteByMethodAndPath(this.app, 'GET', showCrud.path);
+          if (newStackShow) {
+            this.app._router.stack = newStackShow;
+          }
+
+          this.app.get(
+            showCrud.path,
+            [...middlewares],
+            async (req: express.Request, res: express.Response) => {
+              const beforeFetchData = await showCrud.beforeFetch(req);
+              const data = await showCrud.duringFetch(
+                req,
+                () => this.sql.getRepository(entity as new () => T).createQueryBuilder(),
+                beforeFetchData,
+                res
+              );
+              await showCrud.afterFetch(req, data, res);
+            }
+          );
+          break;
+
+        case CrudTypeEnum.storeCrud:
+          const postCrud = crud as StoreType<T>;
+          const newStackStore = this.removeRouteByMethodAndPath(this.app, 'POST', postCrud.path);
+          if (newStackStore) {
+            this.app._router.stack = newStackStore;
+          }
+
+          this.app.post(
+            crud.path,
+            [...middlewares],
+            async (req: express.Request, res: express.Response) => {
+              const beforeCreateData = await postCrud.beforeCreate(req);
+              const data = await postCrud.duringCreate(
+                req,
+                () => this.sql.getRepository(entity as new () => T),
+                beforeCreateData,
+                res
+              );
+              await postCrud.afterCreate(req, data, res);
+            }
+          );
+          break;
+
+        case CrudTypeEnum.updateCrud:
+          const updateCrud = crud as UpdateType<T>;
+          const newStackUpdate = this.removeRouteByMethodAndPath(
+            this.app,
+            'PATCH',
+            updateCrud.path
+          );
+          if (newStackUpdate) {
+            this.app._router.stack = newStackUpdate;
+          }
+
+          this.app.patch(
+            crud.path,
+            [...middlewares],
+            async (req: express.Request, res: express.Response) => {
+              const beforeUpdateData = await updateCrud.beforeUpdate(req);
+              const data = await updateCrud.duringUpdate(
+                req,
+                () => this.sql.getRepository(entity as new () => T),
+                beforeUpdateData,
+                res
+              );
+              await updateCrud.afterUpdate(req, data, res);
+            }
+          );
+          break;
+
+        case CrudTypeEnum.deleteCrud:
+          const deleteCrud = crud as UpdateType<T>;
+          const newStackDelete = this.removeRouteByMethodAndPath(
+            this.app,
+            'DELETE',
+            deleteCrud.path
+          );
+          if (newStackDelete) {
+            this.app._router.stack = newStackDelete;
+          }
+
+          this.app.delete(
+            crud.path,
+            [...middlewares],
+            async (req: express.Request, res: express.Response) => {
+              const beforeDeleteData = await deleteCrud.beforeUpdate(req);
+              await deleteCrud.duringUpdate(
+                req,
+                () => this.sql.getRepository(entity as new () => T),
+                beforeDeleteData,
+                res
+              );
+            }
+          );
+          break;
+
+        default:
+          break;
       }
     }
+  }
+
+  protected parseMiddlewares(middlewares: string[]): express.RequestHandler[] {
+    return (
+      middlewares.map((middleware: string) => {
+        if (!Object.keys(this.middlewares || {}).includes(middleware)) {
+          throw new Error(`Middleware ${middleware} not found in the server`);
+        }
+
+        return this.middlewares[middleware];
+      }) ?? []
+    );
+  }
+
+  protected removeRouteByMethodAndPath(
+    app: express.Application,
+    method: string,
+    path: string
+  ): any[] {
+    return app._router.stack.filter(
+      (layer: any) =>
+        !(layer.route && layer.route.path === path && layer.route.methods[method.toLowerCase()])
+    );
   }
 }

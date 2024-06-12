@@ -1,16 +1,18 @@
 import express from 'express';
+import mongoose from 'mongoose';
+import { RedisClientOptions } from 'redis';
 import * as typeorm from 'typeorm';
+import SMTPTransport = require('nodemailer/lib/smtp-transport');
 
 type ServerOptions = {
-  port?: number;
-  host?: string;
+  port: number;
+  host: string;
   expressInstance?: express.Application;
-  entities?: typeorm.EntitySchema<any>[] | Function[];
   services?: {
-    sql?: boolean;
-    redis?: boolean;
-    mongo?: boolean;
-    smtp?: boolean;
+    sql?: typeorm.DataSourceOptions;
+    redis?: RedisClientOptions;
+    mongo?: mongoose.ConnectOptions & { url: string };
+    smtp?: string | SMTPTransport | SMTPTransport.Options;
     auth?: boolean;
   };
   onServiceStartUp?: {
