@@ -379,15 +379,22 @@ export default class Server {
           this.app.get(
             indexCrud.path,
             [...middlewares],
-            async (req: express.Request, res: express.Response) => {
-              const beforeFetchData = await indexCrud.beforeFetch(req);
-              const data = await indexCrud.duringFetch(
-                req,
-                () => this.sql.getRepository(entity as new () => T).createQueryBuilder(),
-                beforeFetchData,
-                res
-              );
-              await indexCrud.afterFetch(req, data, res);
+            async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+              try {
+                const beforeFetchData = await indexCrud.beforeFetch(req);
+                const data = await indexCrud.duringFetch(
+                  req,
+                  () => this.sql.getRepository(entity as new () => T).createQueryBuilder(),
+                  beforeFetchData,
+                  res
+                );
+                if (!data) {
+                  return next(new Error('Data is void'));
+                }
+                await indexCrud.afterFetch(req, data, res);
+              } catch (error) {
+                next(error);
+              }
             }
           );
           break;
@@ -397,15 +404,22 @@ export default class Server {
           this.app.get(
             showCrud.path,
             [...middlewares],
-            async (req: express.Request, res: express.Response) => {
-              const beforeFetchData = await showCrud.beforeFetch(req);
-              const data = await showCrud.duringFetch(
-                req,
-                () => this.sql.getRepository(entity as new () => T).createQueryBuilder(),
-                beforeFetchData,
-                res
-              );
-              await showCrud.afterFetch(req, data, res);
+            async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+              try {
+                const beforeFetchData = await showCrud.beforeFetch(req);
+                const data = await showCrud.duringFetch(
+                  req,
+                  () => this.sql.getRepository(entity as new () => T).createQueryBuilder(),
+                  beforeFetchData,
+                  res
+                );
+                if (!data) {
+                  return next(new Error('Data is void'));
+                }
+                await showCrud.afterFetch(req, data, res);
+              } catch (error) {
+                next(error);
+              }
             }
           );
           break;
@@ -415,33 +429,47 @@ export default class Server {
           this.app.post(
             crud.path,
             [...middlewares],
-            async (req: express.Request, res: express.Response) => {
-              const beforeCreateData = await postCrud.beforeCreate(req);
-              const data = await postCrud.duringCreate(
-                req,
-                () => this.sql.getRepository(entity as new () => T),
-                beforeCreateData,
-                res
-              );
-              await postCrud.afterCreate(req, data, res);
+            async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+              try {
+                const beforeCreateData = await postCrud.beforeCreate(req);
+                const data = await postCrud.duringCreate(
+                  req,
+                  () => this.sql.getRepository(entity as new () => T),
+                  beforeCreateData,
+                  res
+                );
+                if (!data) {
+                  return next(new Error('Data is void'));
+                }
+                await postCrud.afterCreate(req, data, res);
+              } catch (error) {
+                next(error);
+              }
             }
           );
           break;
 
         case CrudTypeEnum.updateCrud:
           const updateCrud = crud as UpdateType<T>;
-          this.app.put(
+          this.app.patch(
             crud.path,
             [...middlewares],
-            async (req: express.Request, res: express.Response) => {
-              const beforeUpdateData = await updateCrud.beforeUpdate(req);
-              const data = await updateCrud.duringUpdate(
-                req,
-                () => this.sql.getRepository(entity as new () => T),
-                beforeUpdateData,
-                res
-              );
-              await updateCrud.afterUpdate(req, data, res);
+            async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+              try {
+                const beforeUpdateData = await updateCrud.beforeUpdate(req);
+                const data = await updateCrud.duringUpdate(
+                  req,
+                  () => this.sql.getRepository(entity as new () => T),
+                  beforeUpdateData,
+                  res
+                );
+                if (!data) {
+                  return next(new Error('Data is void'));
+                }
+                await updateCrud.afterUpdate(req, data, res);
+              } catch (error) {
+                next(error);
+              }
             }
           );
           break;
@@ -451,14 +479,21 @@ export default class Server {
           this.app.delete(
             crud.path,
             [...middlewares],
-            async (req: express.Request, res: express.Response) => {
-              const beforeDeleteData = await deleteCrud.beforeUpdate(req);
-              await deleteCrud.duringUpdate(
-                req,
-                () => this.sql.getRepository(entity as new () => T),
-                beforeDeleteData,
-                res
-              );
+            async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+              try {
+                const beforeDeleteData = await deleteCrud.beforeUpdate(req);
+                const data = await deleteCrud.duringUpdate(
+                  req,
+                  () => this.sql.getRepository(entity as new () => T),
+                  beforeDeleteData,
+                  res
+                );
+                if (!data) {
+                  return next(new Error('Data is void'));
+                }
+              } catch (error) {
+                next(error);
+              }
             }
           );
           break;
@@ -488,14 +523,18 @@ export default class Server {
             indexCrud.path,
             [...middlewares],
             async (req: express.Request, res: express.Response, next: express.NextFunction) => {
-              const beforeFetchData = await indexCrud.beforeFetch(req).catch((error) => next(error));
-              const data = await indexCrud.duringFetch(
-                req,
-                () => this.sql.getRepository(entity as new () => T).createQueryBuilder(),
-                beforeFetchData,
-                res
-              );
-              await indexCrud.afterFetch(req, data, res);
+              try {
+                const beforeFetchData = await indexCrud.beforeFetch(req);
+                const data = await indexCrud.duringFetch(
+                  req,
+                  () => this.sql.getRepository(entity as new () => T).createQueryBuilder(),
+                  beforeFetchData,
+                  res
+                );
+                await indexCrud.afterFetch(req, data, res);
+              } catch (error) {
+                return next(error);
+              }
             }
           );
           break;
@@ -510,15 +549,22 @@ export default class Server {
           this.app.get(
             showCrud.path,
             [...middlewares],
-            async (req: express.Request, res: express.Response) => {
-              const beforeFetchData = await showCrud.beforeFetch(req);
-              const data = await showCrud.duringFetch(
-                req,
-                () => this.sql.getRepository(entity as new () => T).createQueryBuilder(),
-                beforeFetchData,
-                res
-              );
-              await showCrud.afterFetch(req, data, res);
+            async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+              try {
+                const beforeFetchData = await showCrud.beforeFetch(req);
+                const data = await showCrud.duringFetch(
+                  req,
+                  () => this.sql.getRepository(entity as new () => T).createQueryBuilder(),
+                  beforeFetchData,
+                  res
+                );
+                if (!data) {
+                  return next(new Error('Data is void'));
+                }
+                await showCrud.afterFetch(req, data, res);
+              } catch (error) {
+                next(error);
+              }
             }
           );
           break;
@@ -533,15 +579,22 @@ export default class Server {
           this.app.post(
             crud.path,
             [...middlewares],
-            async (req: express.Request, res: express.Response) => {
-              const beforeCreateData = await postCrud.beforeCreate(req);
-              const data = await postCrud.duringCreate(
-                req,
-                () => this.sql.getRepository(entity as new () => T),
-                beforeCreateData,
-                res
-              );
-              await postCrud.afterCreate(req, data, res);
+            async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+              try {
+                const beforeCreateData = await postCrud.beforeCreate(req);
+                const data = await postCrud.duringCreate(
+                  req,
+                  () => this.sql.getRepository(entity as new () => T),
+                  beforeCreateData,
+                  res
+                );
+                if (!data) {
+                  return next(new Error('Data is void'));
+                }
+                await postCrud.afterCreate(req, data, res);
+              } catch (error) {
+                next(error);
+              }
             }
           );
           break;
@@ -560,15 +613,22 @@ export default class Server {
           this.app.patch(
             crud.path,
             [...middlewares],
-            async (req: express.Request, res: express.Response) => {
-              const beforeUpdateData = await updateCrud.beforeUpdate(req);
-              const data = await updateCrud.duringUpdate(
-                req,
-                () => this.sql.getRepository(entity as new () => T),
-                beforeUpdateData,
-                res
-              );
-              await updateCrud.afterUpdate(req, data, res);
+            async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+              try {
+                const beforeUpdateData = await updateCrud.beforeUpdate(req);
+                const data = await updateCrud.duringUpdate(
+                  req,
+                  () => this.sql.getRepository(entity as new () => T),
+                  beforeUpdateData,
+                  res
+                );
+                if (!data) {
+                  return next(new Error('Data is void'));
+                }
+                await updateCrud.afterUpdate(req, data, res);
+              } catch (error) {
+                next(error);
+              }
             }
           );
           break;
@@ -587,14 +647,21 @@ export default class Server {
           this.app.delete(
             crud.path,
             [...middlewares],
-            async (req: express.Request, res: express.Response) => {
-              const beforeDeleteData = await deleteCrud.beforeUpdate(req);
-              await deleteCrud.duringUpdate(
-                req,
-                () => this.sql.getRepository(entity as new () => T),
-                beforeDeleteData,
-                res
-              );
+            async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+              try {
+                const beforeDeleteData = await deleteCrud.beforeUpdate(req);
+                const data = await deleteCrud.duringUpdate(
+                  req,
+                  () => this.sql.getRepository(entity as new () => T),
+                  beforeDeleteData,
+                  res
+                );
+                if (!data) {
+                  return next(new Error('Data is void'));
+                }
+              } catch (error) {
+                next(error);
+              }
             }
           );
           break;
