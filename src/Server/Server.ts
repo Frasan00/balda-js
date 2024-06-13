@@ -40,7 +40,6 @@ export default class Server {
   private constructor(services: ServicesType, serverOptions: ServerOptions) {
     this.app = serverOptions?.expressInstance || express();
     this.app.use(errorMiddleware);
-    this.app.use(express.json());
 
     this.port = serverOptions.port;
     this.host = serverOptions.host;
