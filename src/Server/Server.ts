@@ -28,7 +28,7 @@ import Mailer from '../Mailer/Mailer';
 export default class Server {
   protected app: express.Application;
   protected services: ServerOptions['services'];
-  public middlewares: Record<string, express.RequestHandler>;
+  protected middlewares: Record<string, express.RequestHandler>;
   protected cruds: Map<new () => typeorm.BaseEntity, Record<string, CRUDType<typeorm.BaseEntity>>>;
   public port: number;
   public host: string;
