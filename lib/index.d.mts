@@ -30,22 +30,22 @@ declare global {
             created: (body: any) => void;
             noContent: () => void;
             partialContent: (body: any) => void;
-            multipleChoices: (message?: string) => void;
-            movedPermanently: (message?: string) => void;
-            seeOther: (message?: string) => void;
-            found: (message?: string) => void;
-            badRequest: (message?: string) => void;
-            unauthorized: (message?: string) => void;
-            forbidden: (message?: string) => void;
-            notFound: (message?: string) => void;
-            requestTimeout: (message?: string) => void;
-            conflict: (message?: string) => void;
-            unprocessableEntity: (message?: string) => void;
-            tooManyRequests: (message?: string) => void;
-            internalServerError: (message?: string) => void;
-            notImplemented: (message?: string) => void;
-            badGateway: (message?: string) => void;
-            serviceUnavailable: (message?: string) => void;
+            multipleChoices: (body: any) => void;
+            movedPermanently: (body: any) => void;
+            seeOther: (body: any) => void;
+            found: (body: any) => void;
+            badRequest: (body: any) => void;
+            unauthorized: (body: any) => void;
+            forbidden: (body: any) => void;
+            notFound: (body: any) => void;
+            requestTimeout: (body: any) => void;
+            conflict: (body: any) => void;
+            unprocessableEntity: (body: any) => void;
+            tooManyRequests: (body: any) => void;
+            internalServerError: (body: any) => void;
+            notImplemented: (body: any) => void;
+            badGateway: (body: any) => void;
+            serviceUnavailable: (body: any) => void;
         }
     }
 }
@@ -165,6 +165,20 @@ declare class Server {
     mongoClient: mongoose.Mongoose;
     private constructor();
     static create(serverOptions?: ServerOptions): Promise<Server>;
+    protected static parseCronExpression(cronExpression: string): {
+        minute: number | null;
+        hour: number | null;
+        dayOfMonth: number | null;
+        month: number | null;
+        dayOfWeek: number | null;
+    };
+    /**
+     * @description - Creates a cron job that is checked every minute if can be executed
+     * @param cronExpression
+     * @param target
+     * @returns
+     */
+    static cron(cronExpression: string, target: () => any): NodeJS.Timeout;
     start(cb?: () => void): void;
     /**
      * @description - The handler will be executed before every request

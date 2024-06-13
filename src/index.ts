@@ -94,6 +94,10 @@ class User extends typeorm.BaseEntity {
   });
 
   server.start(() => Logger.info('Server started on port ' + server.port));
+
+  Server.cron('* * * * * *', () => {
+    Logger.info('Cron job');
+  });
 })();
 
 export default {

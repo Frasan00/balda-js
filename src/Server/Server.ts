@@ -6,7 +6,7 @@ import cors from 'cors';
 import typeorm, { DataSource } from 'typeorm';
 import mongoose from 'mongoose';
 import redis from 'redis';
-import { ServicesType, parseServices } from './ServerUtils';
+import { ServicesType, errorMiddleware, parseServices } from './ServerUtils';
 import {
   CRUDType,
   DeleteType,
@@ -39,6 +39,9 @@ export default class Server {
 
   private constructor(services: ServicesType, serverOptions: ServerOptions) {
     this.app = serverOptions?.expressInstance || express();
+    this.app.use(errorMiddleware);
+    this.app.use(express.json());
+
     this.port = serverOptions.port;
     this.host = serverOptions.host;
     this.cruds = new Map();
@@ -70,6 +73,42 @@ export default class Server {
     );
 
     return server;
+  }
+
+  protected static parseCronExpression(cronExpression: string) {
+    const [minute, hour, dayOfMonth, month, dayOfWeek] = cronExpression.split(' ');
+
+    return {
+      minute: minute === '*' ? null : parseInt(minute, 10),
+      hour: hour === '*' ? null : parseInt(hour, 10),
+      dayOfMonth: dayOfMonth === '*' ? null : parseInt(dayOfMonth, 10),
+      month: month === '*' ? null : parseInt(month, 10),
+      dayOfWeek: dayOfWeek === '*' ? null : parseInt(dayOfWeek, 10),
+    };
+  }
+
+  /**
+   * @description - Creates a cron job that is checked every minute if can be executed
+   * @param cronExpression
+   * @param target
+   * @returns
+   */
+  public static cron(cronExpression: string, target: () => any) {
+    const { minute, hour, dayOfMonth, month, dayOfWeek } =
+      Server.parseCronExpression(cronExpression);
+
+    return setInterval(() => {
+      const date = new Date();
+      if (
+        (minute === null || minute === date.getMinutes()) &&
+        (hour === null || hour === date.getHours()) &&
+        (dayOfMonth === null || dayOfMonth === date.getDate()) &&
+        (month === null || month === date.getMonth()) &&
+        (dayOfWeek === null || dayOfWeek === date.getDay())
+      ) {
+        target();
+      }
+    }, 60000);
   }
 
   public start(cb?: () => void) {
@@ -448,8 +487,8 @@ export default class Server {
           this.app.get(
             indexCrud.path,
             [...middlewares],
-            async (req: express.Request, res: express.Response) => {
-              const beforeFetchData = await indexCrud.beforeFetch(req);
+            async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+              const beforeFetchData = await indexCrud.beforeFetch(req).catch((error) => next(error));
               const data = await indexCrud.duringFetch(
                 req,
                 () => this.sql.getRepository(entity as new () => T).createQueryBuilder(),

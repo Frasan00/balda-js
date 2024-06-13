@@ -22,24 +22,24 @@ declare global {
       noContent: () => void;
       partialContent: (body: any) => void;
 
-      multipleChoices: (message?: string) => void;
-      movedPermanently: (message?: string) => void;
-      seeOther: (message?: string) => void;
-      found: (message?: string) => void;
+      multipleChoices: (body: any) => void;
+      movedPermanently: (body: any) => void;
+      seeOther: (body: any) => void;
+      found: (body: any) => void;
 
-      badRequest: (message?: string) => void;
-      unauthorized: (message?: string) => void;
-      forbidden: (message?: string) => void;
-      notFound: (message?: string) => void;
-      requestTimeout: (message?: string) => void;
-      conflict: (message?: string) => void;
-      unprocessableEntity: (message?: string) => void;
-      tooManyRequests: (message?: string) => void;
+      badRequest: (body: any) => void;
+      unauthorized: (body: any) => void;
+      forbidden: (body: any) => void;
+      notFound: (body: any) => void;
+      requestTimeout: (body: any) => void;
+      conflict: (body: any) => void;
+      unprocessableEntity: (body: any) => void;
+      tooManyRequests: (body: any) => void;
 
-      internalServerError: (message?: string) => void;
-      notImplemented: (message?: string) => void;
-      badGateway: (message?: string) => void;
-      serviceUnavailable: (message?: string) => void;
+      internalServerError: (body: any) => void;
+      notImplemented: (body: any) => void;
+      badGateway: (body: any) => void;
+      serviceUnavailable: (body: any) => void;
     }
   }
 }
@@ -51,7 +51,7 @@ express.request.user = {};
  * @param User - Optional parameter to specify the type of user, can also be passed as a generic
  * @returns
  */
-express.request.getUser = function <T>(User?: new () => T) {
+express.request.getUser = function <T>() {
   return this.user as T;
 };
 

@@ -5,6 +5,8 @@ import mongoose from 'mongoose';
 import nodemailer from 'nodemailer';
 import Mailer from '../Mailer/Mailer';
 import SMTPTransport from 'nodemailer/lib/smtp-transport';
+import express from './Customization';
+import Logger from '../../Logger';
 
 export type ServicesType = {
   datasource: DataSource;
@@ -58,6 +60,15 @@ async function parseSmtpEmailService(
     return await new Promise<nodemailer.Transporter>((resolve, reject) => {
       const transporter = nodemailer.createTransport(smtpOptions);
 
+      transporter.on('idle', () => {
+        Logger.info('SMTP idle');
+      });
+
+      transporter.on('error', (error) => {
+        Logger.error('SMTP connection failed, ' + String(error) + ' - Closing connection');
+        transporter.close();
+      });
+
       transporter.verify((error) => {
         if (error) {
           return reject(error);
@@ -77,7 +88,16 @@ async function parseMongoService(
   const url = mongoOptions.url;
   delete (mongoOptions as mongoose.ConnectOptions & { url?: string }).url;
   try {
-    return await mongoose.connect(url, mongoOptions);
+    const mongo = await mongoose.connect(url, mongoOptions);
+    mongo.connection.on('disconnected', () => {
+      Logger.info('Mongo disconnected');
+    });
+
+    mongo.connection.on('error', (error) => {
+      Logger.error('Mongo connection failed, ' + String(error));
+    });
+
+    return mongo;
   } catch (error) {
     throw new Error('Mongo connection failed, ' + String(error));
   }
@@ -85,9 +105,20 @@ async function parseMongoService(
 
 async function parseRedisService(redisOptions: RedisClientOptions) {
   try {
-    return await createClient({
+    const redisClient = await createClient({
       ...redisOptions,
     })?.connect();
+
+    redisClient.on('error', (error) => {
+      Logger.error('Redis connection failed, ' + String(error) + ' - Closing connection');
+      redisClient.disconnect();
+    });
+
+    redisClient.on('disconnect', () => {
+      Logger.info('Redis disconnected');
+    });
+
+    return redisClient;
   } catch (error) {
     throw new Error('Redis connection failed, ' + String(error));
   }
@@ -95,11 +126,11 @@ async function parseRedisService(redisOptions: RedisClientOptions) {
 
 async function parseSqlService(sqlOptions: DataSourceOptions): Promise<DataSource> {
   try {
-    const datasource: DataSource = new DataSource({
+    const datasourceConf: DataSource = new DataSource({
       ...sqlOptions,
     });
 
-    await datasource.initialize();
+    const datasource = await datasourceConf.initialize();
     if (!datasource.isInitialized) {
       throw new Error('Error while connecting to sql datasource');
     }
@@ -108,4 +139,16 @@ async function parseSqlService(sqlOptions: DataSourceOptions): Promise<DataSourc
   } catch (error) {
     throw error;
   }
+}
+
+export function errorMiddleware(
+  error: any,
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction
+): void {
+  Logger.error(error);
+  return res.internalServerError({
+    message: String(error),
+  });
 }
