@@ -28,10 +28,9 @@ class User extends typeorm.BaseEntity {
     host: '0.0.0.0',
     services: {
       swagger: {
-        swaggerPath: '/docs',
-        bearerAuth: {
-          validTokens: ['token1'],
-        },
+        title: 'My API',
+        version: '1.0.0',
+        description: 'My API description',
       },
       sql: {
         type,
