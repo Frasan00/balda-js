@@ -15,7 +15,7 @@ import {
   StoreType,
   UpdateType,
 } from '../CRUD/CrudTypes';
-import { CrudTypeEnum, makeBaseCruds } from '../CRUD/Crud';
+import { makeBaseCruds } from '../CRUD/Crud';
 import {
   EditDeleteType,
   EditIndexType,
@@ -24,12 +24,13 @@ import {
   EditUpdateType,
 } from '../CRUD/EditCrudTypes';
 import Mailer from '../Mailer/Mailer';
+import { registerOrUpdateCRUDRoutes } from '../CRUD/CrudUtils';
 
 export default class Server {
-  protected app: express.Application;
   protected services: ServerOptions['services'];
-  public middlewares: Record<string, express.RequestHandler>;
   protected cruds: Map<new () => typeorm.BaseEntity, Record<string, CRUDType<typeorm.BaseEntity>>>;
+  public middlewares: Record<string, express.RequestHandler>;
+  public app: express.Application;
   public port: number;
   public host: string;
   public mailer: Mailer;
@@ -60,7 +61,9 @@ export default class Server {
     this.middlewares = {};
   }
 
-  public static async create(serverOptions?: ServerOptions): Promise<Server> {
+  public static async create(
+    serverOptions: ServerOptions = { port: 80, host: '0.0.0.0' }
+  ): Promise<Server> {
     const services = await parseServices(serverOptions?.services, serverOptions?.onServiceStartUp);
     const server = new Server(
       {
@@ -69,7 +72,7 @@ export default class Server {
         mongoClient: services.mongoClient,
         mailer: services.mailer,
       },
-      serverOptions || { port: 80, host: '0.0.0.0' }
+      serverOptions
     );
 
     return server;
@@ -164,7 +167,7 @@ export default class Server {
 
     const cruds = makeBaseCruds<typeorm.BaseEntity>(entityName);
     this.cruds.set(entity, cruds);
-    this.registerCRUDRoutes<typeorm.BaseEntity>(cruds, entity);
+    registerOrUpdateCRUDRoutes<typeorm.BaseEntity>(this, cruds, entity);
   }
 
   /**
@@ -196,7 +199,8 @@ export default class Server {
       } as IndexType<typeorm.BaseEntity>,
     });
 
-    this.updateCRUDRoutes<typeorm.BaseEntity>(
+    registerOrUpdateCRUDRoutes<typeorm.BaseEntity>(
+      this,
       this.cruds.get(entity) as Record<string, CRUDType<typeorm.BaseEntity>>,
       entity
     );
@@ -231,7 +235,8 @@ export default class Server {
       } as ShowType<typeorm.BaseEntity>,
     });
 
-    this.updateCRUDRoutes<typeorm.BaseEntity>(
+    registerOrUpdateCRUDRoutes<typeorm.BaseEntity>(
+      this,
       this.cruds.get(entity) as Record<string, CRUDType<typeorm.BaseEntity>>,
       entity
     );
@@ -266,7 +271,8 @@ export default class Server {
       } as StoreType<typeorm.BaseEntity>,
     });
 
-    this.updateCRUDRoutes<typeorm.BaseEntity>(
+    registerOrUpdateCRUDRoutes<typeorm.BaseEntity>(
+      this,
       this.cruds.get(entity) as Record<string, CRUDType<typeorm.BaseEntity>>,
       entity
     );
@@ -301,7 +307,8 @@ export default class Server {
       } as UpdateType<typeorm.BaseEntity>,
     });
 
-    this.updateCRUDRoutes<typeorm.BaseEntity>(
+    registerOrUpdateCRUDRoutes<typeorm.BaseEntity>(
+      this,
       this.cruds.get(entity) as Record<string, CRUDType<typeorm.BaseEntity>>,
       entity
     );
@@ -336,14 +343,11 @@ export default class Server {
       } as DeleteType<typeorm.BaseEntity>,
     });
 
-    this.updateCRUDRoutes<typeorm.BaseEntity>(
+    registerOrUpdateCRUDRoutes<typeorm.BaseEntity>(
+      this,
       this.cruds.get(entity) as Record<string, CRUDType<typeorm.BaseEntity>>,
       entity
     );
-  }
-
-  public rawExpressApp() {
-    return this.app;
   }
 
   public router(): express.Router {
@@ -364,334 +368,5 @@ export default class Server {
 
   public useCors(corsOptions?: cors.CorsOptions): express.Application {
     return this.app.use(cors(corsOptions));
-  }
-
-  protected registerCRUDRoutes<T extends typeorm.BaseEntity>(
-    cruds: Record<string, CRUDType<T>>,
-    entity: new () => typeorm.BaseEntity
-  ): void {
-    for (const [key, crud] of Object.entries(cruds)) {
-      const middlewares = this.parseMiddlewares(crud.middlewares);
-
-      switch (key) {
-        case CrudTypeEnum.indexCrud:
-          const indexCrud = crud as IndexType<T>;
-          this.app.get(
-            indexCrud.path,
-            [...middlewares],
-            async (req: express.Request, res: express.Response, next: express.NextFunction) => {
-              try {
-                const beforeFetchData = await indexCrud.beforeFetch(req);
-                const data = await indexCrud.duringFetch(
-                  req,
-                  () => this.sql.getRepository(entity as new () => T).createQueryBuilder(),
-                  beforeFetchData,
-                  res
-                );
-                if (!data) {
-                  return next(new Error('Data is void'));
-                }
-                await indexCrud.afterFetch(req, data, res);
-              } catch (error) {
-                next(error);
-              }
-            }
-          );
-          break;
-
-        case CrudTypeEnum.showCrud:
-          const showCrud = crud as ShowType<T>;
-          this.app.get(
-            showCrud.path,
-            [...middlewares],
-            async (req: express.Request, res: express.Response, next: express.NextFunction) => {
-              try {
-                const beforeFetchData = await showCrud.beforeFetch(req);
-                const data = await showCrud.duringFetch(
-                  req,
-                  () => this.sql.getRepository(entity as new () => T).createQueryBuilder(),
-                  beforeFetchData,
-                  res
-                );
-                if (!data) {
-                  return next(new Error('Data is void'));
-                }
-                await showCrud.afterFetch(req, data, res);
-              } catch (error) {
-                next(error);
-              }
-            }
-          );
-          break;
-
-        case CrudTypeEnum.storeCrud:
-          const postCrud = crud as StoreType<T>;
-          this.app.post(
-            crud.path,
-            [...middlewares],
-            async (req: express.Request, res: express.Response, next: express.NextFunction) => {
-              try {
-                const beforeCreateData = await postCrud.beforeCreate(req);
-                const data = await postCrud.duringCreate(
-                  req,
-                  () => this.sql.getRepository(entity as new () => T),
-                  beforeCreateData,
-                  res
-                );
-                if (!data) {
-                  return next(new Error('Data is void'));
-                }
-                await postCrud.afterCreate(req, data, res);
-              } catch (error) {
-                next(error);
-              }
-            }
-          );
-          break;
-
-        case CrudTypeEnum.updateCrud:
-          const updateCrud = crud as UpdateType<T>;
-          this.app.patch(
-            crud.path,
-            [...middlewares],
-            async (req: express.Request, res: express.Response, next: express.NextFunction) => {
-              try {
-                const beforeUpdateData = await updateCrud.beforeUpdate(req);
-                const data = await updateCrud.duringUpdate(
-                  req,
-                  () => this.sql.getRepository(entity as new () => T),
-                  beforeUpdateData,
-                  res
-                );
-                if (!data) {
-                  return next(new Error('Data is void'));
-                }
-                await updateCrud.afterUpdate(req, data, res);
-              } catch (error) {
-                next(error);
-              }
-            }
-          );
-          break;
-
-        case CrudTypeEnum.deleteCrud:
-          const deleteCrud = crud as UpdateType<T>;
-          this.app.delete(
-            crud.path,
-            [...middlewares],
-            async (req: express.Request, res: express.Response, next: express.NextFunction) => {
-              try {
-                const beforeDeleteData = await deleteCrud.beforeUpdate(req);
-                const data = await deleteCrud.duringUpdate(
-                  req,
-                  () => this.sql.getRepository(entity as new () => T),
-                  beforeDeleteData,
-                  res
-                );
-                if (!data) {
-                  return next(new Error('Data is void'));
-                }
-              } catch (error) {
-                next(error);
-              }
-            }
-          );
-          break;
-
-        default:
-          break;
-      }
-    }
-  }
-
-  protected updateCRUDRoutes<T extends typeorm.BaseEntity>(
-    cruds: Record<string, CRUDType<T>>,
-    entity: new () => typeorm.BaseEntity
-  ): void {
-    for (const [key, crud] of Object.entries(cruds)) {
-      const middlewares = this.parseMiddlewares(crud.middlewares);
-
-      switch (key) {
-        case CrudTypeEnum.indexCrud:
-          const indexCrud = crud as IndexType<T>;
-          const newStack = this.removeRouteByMethodAndPath(this.app, 'GET', indexCrud.path);
-          if (newStack) {
-            this.app._router.stack = newStack;
-          }
-
-          this.app.get(
-            indexCrud.path,
-            [...middlewares],
-            async (req: express.Request, res: express.Response, next: express.NextFunction) => {
-              try {
-                const beforeFetchData = await indexCrud.beforeFetch(req);
-                const data = await indexCrud.duringFetch(
-                  req,
-                  () => this.sql.getRepository(entity as new () => T).createQueryBuilder(),
-                  beforeFetchData,
-                  res
-                );
-                await indexCrud.afterFetch(req, data, res);
-              } catch (error) {
-                return next(error);
-              }
-            }
-          );
-          break;
-
-        case CrudTypeEnum.showCrud:
-          const showCrud = crud as ShowType<T>;
-          const newStackShow = this.removeRouteByMethodAndPath(this.app, 'GET', showCrud.path);
-          if (newStackShow) {
-            this.app._router.stack = newStackShow;
-          }
-
-          this.app.get(
-            showCrud.path,
-            [...middlewares],
-            async (req: express.Request, res: express.Response, next: express.NextFunction) => {
-              try {
-                const beforeFetchData = await showCrud.beforeFetch(req);
-                const data = await showCrud.duringFetch(
-                  req,
-                  () => this.sql.getRepository(entity as new () => T).createQueryBuilder(),
-                  beforeFetchData,
-                  res
-                );
-                if (!data) {
-                  return next(new Error('Data is void'));
-                }
-                await showCrud.afterFetch(req, data, res);
-              } catch (error) {
-                next(error);
-              }
-            }
-          );
-          break;
-
-        case CrudTypeEnum.storeCrud:
-          const postCrud = crud as StoreType<T>;
-          const newStackStore = this.removeRouteByMethodAndPath(this.app, 'POST', postCrud.path);
-          if (newStackStore) {
-            this.app._router.stack = newStackStore;
-          }
-
-          this.app.post(
-            crud.path,
-            [...middlewares],
-            async (req: express.Request, res: express.Response, next: express.NextFunction) => {
-              try {
-                const beforeCreateData = await postCrud.beforeCreate(req);
-                const data = await postCrud.duringCreate(
-                  req,
-                  () => this.sql.getRepository(entity as new () => T),
-                  beforeCreateData,
-                  res
-                );
-                if (!data) {
-                  return next(new Error('Data is void'));
-                }
-                await postCrud.afterCreate(req, data, res);
-              } catch (error) {
-                next(error);
-              }
-            }
-          );
-          break;
-
-        case CrudTypeEnum.updateCrud:
-          const updateCrud = crud as UpdateType<T>;
-          const newStackUpdate = this.removeRouteByMethodAndPath(
-            this.app,
-            'PATCH',
-            updateCrud.path
-          );
-          if (newStackUpdate) {
-            this.app._router.stack = newStackUpdate;
-          }
-
-          this.app.patch(
-            crud.path,
-            [...middlewares],
-            async (req: express.Request, res: express.Response, next: express.NextFunction) => {
-              try {
-                const beforeUpdateData = await updateCrud.beforeUpdate(req);
-                const data = await updateCrud.duringUpdate(
-                  req,
-                  () => this.sql.getRepository(entity as new () => T),
-                  beforeUpdateData,
-                  res
-                );
-                if (!data) {
-                  return next(new Error('Data is void'));
-                }
-                await updateCrud.afterUpdate(req, data, res);
-              } catch (error) {
-                next(error);
-              }
-            }
-          );
-          break;
-
-        case CrudTypeEnum.deleteCrud:
-          const deleteCrud = crud as UpdateType<T>;
-          const newStackDelete = this.removeRouteByMethodAndPath(
-            this.app,
-            'DELETE',
-            deleteCrud.path
-          );
-          if (newStackDelete) {
-            this.app._router.stack = newStackDelete;
-          }
-
-          this.app.delete(
-            crud.path,
-            [...middlewares],
-            async (req: express.Request, res: express.Response, next: express.NextFunction) => {
-              try {
-                const beforeDeleteData = await deleteCrud.beforeUpdate(req);
-                const data = await deleteCrud.duringUpdate(
-                  req,
-                  () => this.sql.getRepository(entity as new () => T),
-                  beforeDeleteData,
-                  res
-                );
-                if (!data) {
-                  return next(new Error('Data is void'));
-                }
-              } catch (error) {
-                next(error);
-              }
-            }
-          );
-          break;
-
-        default:
-          break;
-      }
-    }
-  }
-
-  protected parseMiddlewares(middlewares: string[]): express.RequestHandler[] {
-    return (
-      middlewares.map((middleware: string) => {
-        if (!Object.keys(this.middlewares || {}).includes(middleware)) {
-          throw new Error(`Middleware ${middleware} not found in the server`);
-        }
-
-        return this.middlewares[middleware];
-      }) ?? []
-    );
-  }
-
-  protected removeRouteByMethodAndPath(
-    app: express.Application,
-    method: string,
-    path: string
-  ): any[] {
-    return app._router.stack.filter(
-      (layer: any) =>
-        !(layer.route && layer.route.path === path && layer.route.methods[method.toLowerCase()])
-    );
   }
 }

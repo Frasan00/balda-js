@@ -50,6 +50,12 @@ declare global {
     }
 }
 
+type SwaggerOptions = {
+    path?: string;
+    title?: string;
+    description?: string;
+    version?: string;
+};
 type ServerOptions = {
     port: number;
     host: string;
@@ -62,6 +68,7 @@ type ServerOptions = {
         };
         smtp?: string | SMTPTransport | SMTPTransport.Options;
         auth?: boolean;
+        swagger?: SwaggerOptions;
     };
     onServiceStartUp?: {
         sql?: () => void;
@@ -153,10 +160,10 @@ declare class Mailer {
 }
 
 declare class Server {
-    protected app: express.Application;
     protected services: ServerOptions['services'];
-    middlewares: Record<string, express.RequestHandler>;
     protected cruds: Map<new () => typeorm__default.BaseEntity, Record<string, CRUDType<typeorm__default.BaseEntity>>>;
+    middlewares: Record<string, express.RequestHandler>;
+    app: express.Application;
     port: number;
     host: string;
     mailer: Mailer;
@@ -228,14 +235,9 @@ declare class Server {
      * @param type Hook to customize the base CRUD operations
      */
     customizeDeleteCRUD<T extends typeorm__default.BaseEntity>(entity: new () => T, editDeleteCrud: EditDeleteType<T>): void;
-    rawExpressApp(): express.Application;
     router(): express.Router;
     use(...handlers: express.RequestHandler<ParamsDictionary, any, any, QueryString.ParsedQs, Record<string, any>>[]): express.Application;
     useCors(corsOptions?: cors.CorsOptions): express.Application;
-    protected registerCRUDRoutes<T extends typeorm__default.BaseEntity>(cruds: Record<string, CRUDType<T>>, entity: new () => typeorm__default.BaseEntity): void;
-    protected updateCRUDRoutes<T extends typeorm__default.BaseEntity>(cruds: Record<string, CRUDType<T>>, entity: new () => typeorm__default.BaseEntity): void;
-    protected parseMiddlewares(middlewares: string[]): express.RequestHandler[];
-    protected removeRouteByMethodAndPath(app: express.Application, method: string, path: string): any[];
 }
 
 declare const _default: {

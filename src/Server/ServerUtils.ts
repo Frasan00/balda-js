@@ -1,5 +1,5 @@
 import { DataSource, DataSourceOptions } from 'typeorm';
-import ServerOptions from './ServerTypes';
+import ServerOptions, { SwaggerOptions } from './ServerTypes';
 import { createClient, RedisClientOptions, RedisClientType } from 'redis';
 import mongoose from 'mongoose';
 import nodemailer from 'nodemailer';
@@ -7,6 +7,8 @@ import Mailer from '../Mailer/Mailer';
 import SMTPTransport from 'nodemailer/lib/smtp-transport';
 import express from './Customization';
 import Logger from '../../Logger';
+import swaggerAutogen from 'swagger-autogen';
+import Server from './Server';
 
 export type ServicesType = {
   datasource: DataSource;
@@ -151,4 +153,32 @@ export function errorMiddleware(
   return res.internalServerError({
     message: String(error),
   });
+}
+
+export function parseMiddlewares(server: Server, middlewares: string[]): express.RequestHandler[] {
+  return (
+    middlewares.map((middleware: string) => {
+      if (!Object.keys(server.middlewares || {}).includes(middleware)) {
+        throw new Error(`Middleware ${middleware} not found in the server`);
+      }
+
+      return server.middlewares[middleware];
+    }) ?? []
+  );
+}
+
+export function filterRouteByMethodAndPath(
+  app: express.Application,
+  method: string,
+  path: string
+): any[] {
+  return app._router.stack.filter(
+    (layer: any) =>
+      !(layer.route && layer.route.path === path && layer.route.methods[method.toLowerCase()])
+  );
+}
+
+// TODO: Implement the function generateSwagger
+export function generateSwagger(app: express.Application, swaggerOptions: SwaggerOptions) {
+  swaggerAutogen(app);
 }

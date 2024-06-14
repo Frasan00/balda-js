@@ -72,14 +72,16 @@ class User extends typeorm.BaseEntity {
   });
 
   server.registerGlobalMiddleware(async (req, res, next) => {
+    console.log('Global middleware');
+
     req.user = await server.sql.getRepository(User).findOneByOrFail({ id: 1 });
     next();
   });
 
   server.registerMiddleware({
     name: 'log',
-    handler: (req, res, next: express.NextFunction) => {
-      console.log('Fine until now');
+    handler: (_req, _res, next: express.NextFunction) => {
+      console.log('Middleware log, fine until now');
       next();
     },
   });
