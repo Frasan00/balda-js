@@ -7,7 +7,6 @@ import Mailer from '../Mailer/Mailer';
 import SMTPTransport from 'nodemailer/lib/smtp-transport';
 import express from './Customization';
 import Logger from '../../Logger';
-import swaggerAutogen from 'swagger-autogen';
 import Server from './Server';
 
 export type ServicesType = {
@@ -176,9 +175,4 @@ export function filterRouteByMethodAndPath(
     (layer: any) =>
       !(layer.route && layer.route.path === path && layer.route.methods[method.toLowerCase()])
   );
-}
-
-// TODO: Implement the function generateSwagger
-export function generateSwagger(app: express.Application, swaggerOptions: SwaggerOptions) {
-  swaggerAutogen(app);
 }

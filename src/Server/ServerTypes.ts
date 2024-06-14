@@ -4,11 +4,16 @@ import { RedisClientOptions } from 'redis';
 import * as typeorm from 'typeorm';
 import SMTPTransport = require('nodemailer/lib/smtp-transport');
 
+/**
+ * SwaggerOptions
+ * @description Options for Swagger
+ * @property {string} pathToSwaggerFile - Path to the swagger file optional, if not provided root path will be used
+ * @property {string} resourcePath - Api resource path, if none provided /docs will be used
+ */
 export type SwaggerOptions = {
-  path?: string;
   title?: string;
-  description?: string;
   version?: string;
+  description?: string;
 };
 
 type ServerOptions = {

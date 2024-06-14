@@ -25,6 +25,7 @@ import {
 } from '../CRUD/EditCrudTypes';
 import Mailer from '../Mailer/Mailer';
 import { registerOrUpdateCRUDRoutes } from '../CRUD/CrudUtils';
+import expressOasGenerator, { SPEC_OUTPUT_FILE_BEHAVIOR } from 'express-oas-generator';
 
 export default class Server {
   protected services: ServerOptions['services'];
@@ -40,6 +41,47 @@ export default class Server {
 
   private constructor(services: ServicesType, serverOptions: ServerOptions) {
     this.app = serverOptions?.expressInstance || express();
+    if (!!serverOptions?.services?.swagger) {
+      expressOasGenerator.init(this.app as express.Express, {
+        schemes: ['http'],
+        responses: {
+          200: {
+            description: 'Success',
+          },
+          400: {
+            description: 'Bad request',
+          },
+          401: {
+            description: 'Unauthorized',
+          },
+          403: {
+            description: 'Forbidden',
+          },
+          404: {
+            description: 'Not found',
+          },
+          500: {
+            description: 'Internal server error',
+          },
+        },
+        info: {
+          title: serverOptions.services.swagger.title || 'API Documentation',
+          version: serverOptions.services.swagger.version || '1.0.0',
+          description:
+            serverOptions.services.swagger.description ||
+            'Auto-generated API documentation using express-oas-generator',
+        },
+        // basePath: serverOptions.services.swagger.customSwaggerDefinitionPath,
+        specOutputFileBehavior: SPEC_OUTPUT_FILE_BEHAVIOR.PRESERVE,
+        securityDefinitions: {
+          Bearer: {
+            type: 'token',
+            name: 'Authorization',
+            in: 'header',
+          },
+        },
+      });
+    }
     this.app.use(errorMiddleware);
 
     this.port = serverOptions.port;
@@ -91,11 +133,12 @@ export default class Server {
 
   /**
    * @description - Creates a cron job that is checked every minute if can be executed
-   * @param cronExpression
-   * @param target
+   * @param cronExpression - The cron expression to check if the target should be executed
+   * @param target - The function to execute if the cron expression is true
+   * @param checkInterval - The interval to check if the cron expression is true
    * @returns
    */
-  public static cron(cronExpression: string, target: () => any) {
+  public static cron(cronExpression: string, target: () => any, checkInterval: number = 60000) {
     const { minute, hour, dayOfMonth, month, dayOfWeek } =
       Server.parseCronExpression(cronExpression);
 
@@ -110,7 +153,7 @@ export default class Server {
       ) {
         target();
       }
-    }, 60000);
+    }, checkInterval);
   }
 
   public start(cb?: () => void) {
@@ -136,8 +179,6 @@ export default class Server {
     handler: express.RequestHandler;
     name?: string;
   }): Promise<void> {
-    console.log(this.middlewares);
-
     if (handlerData.name && this.middlewares.hasOwnProperty(handlerData.name)) {
       throw new Error(`Middleware with name ${handlerData.name} already exists`);
     }

@@ -27,6 +27,12 @@ class User extends typeorm.BaseEntity {
     port: 80,
     host: '0.0.0.0',
     services: {
+      swagger: {
+        swaggerPath: '/docs',
+        bearerAuth: {
+          validTokens: ['token1'],
+        },
+      },
       sql: {
         type,
         host,

@@ -50,11 +50,21 @@ declare global {
     }
 }
 
+/**
+ * SwaggerOptions
+ * @description Options for Swagger
+ * @property {string} pathToSwaggerFile - Path to the swagger file optional, if not provided root path will be used
+ * @property {string} resourcePath - Api resource path, if none provided /docs will be used
+ */
 type SwaggerOptions = {
-    path?: string;
     title?: string;
-    description?: string;
     version?: string;
+    description?: string;
+    swaggerPath?: string;
+    customSwaggerDefinitionPath?: string;
+    bearerAuth?: {
+        validTokens: string[];
+    };
 };
 type ServerOptions = {
     port: number;
@@ -181,11 +191,12 @@ declare class Server {
     };
     /**
      * @description - Creates a cron job that is checked every minute if can be executed
-     * @param cronExpression
-     * @param target
+     * @param cronExpression - The cron expression to check if the target should be executed
+     * @param target - The function to execute if the cron expression is true
+     * @param checkInterval - The interval to check if the cron expression is true
      * @returns
      */
-    static cron(cronExpression: string, target: () => any): NodeJS.Timeout;
+    static cron(cronExpression: string, target: () => any, checkInterval?: number): NodeJS.Timeout;
     start(cb?: () => void): void;
     /**
      * @description - The handler will be executed before every request
