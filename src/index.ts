@@ -4,6 +4,7 @@ import * as typeorm from 'typeorm';
 import 'reflect-metadata';
 import dotenv from 'dotenv';
 import express from './Server/Customization';
+import Router from './Router/Router';
 dotenv.config();
 
 const type = (process.env.DB_TYPE as 'mysql' | 'mariadb') || 'postgres';
@@ -92,13 +93,34 @@ class User extends typeorm.BaseEntity {
   });
 
   server.makeCRUD(User);
-  server.customizeIndexCRUD(User, {
+  server.seasonIndexCRUD(User, {
     afterFetch: async (req, data, res) => {
       const user = req.getUser<User>();
       res.ok('User retrieved, ' + JSON.stringify(user));
     },
     middlewares: ['log'],
   });
+
+  Router.get(
+    '/cool-path',
+    (_req, res) => {
+      res.ok('Cool path');
+    },
+    ['log']
+  );
+  Router.group(
+    (router) => {
+      router.get(
+        '/internal-cool-path',
+        (req, res) => {
+          res.ok('Internal cool path');
+        },
+        ['log']
+      );
+    },
+    '/group',
+    ['log']
+  );
 
   server.start(() => Logger.info('Server started on port ' + server.port));
 
@@ -111,4 +133,5 @@ export default {
   Logger,
   Server,
   createServer: Server.create,
+  router: Router,
 };

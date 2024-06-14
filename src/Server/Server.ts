@@ -6,6 +6,7 @@ import cors from 'cors';
 import typeorm, { DataSource } from 'typeorm';
 import mongoose from 'mongoose';
 import redis from 'redis';
+import Router from '../Router/Router';
 import { ServicesType, errorMiddleware, parseServices } from './ServerUtils';
 import {
   CRUDType,
@@ -40,6 +41,9 @@ export default class Server {
   public mongoClient: mongoose.Mongoose;
 
   private constructor(services: ServicesType, serverOptions: ServerOptions) {
+    // Set the server for the router
+    Router.setServer(this);
+
     this.app = serverOptions?.expressInstance || express();
     if (!!serverOptions?.services?.swagger) {
       expressOasGenerator.init(this.app as express.Express, {
@@ -65,6 +69,11 @@ export default class Server {
           },
         },
         info: {
+          license: {
+            name: serverOptions.services.swagger.licence?.name || 'MIT',
+            url:
+              serverOptions.services.swagger.licence?.url || 'https://opensource.org/licenses/MIT',
+          },
           title: serverOptions.services.swagger.title || 'API Documentation',
           version: serverOptions.services.swagger.version || '1.0.0',
           description:
@@ -102,6 +111,11 @@ export default class Server {
     this.middlewares = {};
   }
 
+  /**
+   * @description - Creates a new server instance, main entry point for the framework
+   * @param serverOptions
+   * @returns
+   */
   public static async create(
     serverOptions: ServerOptions = { port: 80, host: '0.0.0.0' }
   ): Promise<Server> {
@@ -156,6 +170,11 @@ export default class Server {
     }, checkInterval);
   }
 
+  /**
+   * @description - Start the server
+   * @param cb - Callback to execute after the server has started
+   * @returns
+   */
   public start(cb?: () => void) {
     this.app.listen(this.port, this.host, cb);
   }
@@ -214,7 +233,7 @@ export default class Server {
    * @description - Customize the index CRUD operation for a given entity with custom hooks
    * @param type Hook to customize the base CRUD operations
    */
-  public customizeIndexCRUD<T extends typeorm.BaseEntity>(
+  public seasonIndexCRUD<T extends typeorm.BaseEntity>(
     entity: new () => T,
     editIndexCrud: EditIndexType<T>
   ) {
@@ -250,7 +269,7 @@ export default class Server {
    * @description - Customize the show CRUD operation for a given entity with custom hooks
    * @param type Hook to customize the base CRUD operations
    */
-  public customizeShowCRUD<T extends typeorm.BaseEntity>(
+  public seasonShowCRUD<T extends typeorm.BaseEntity>(
     entity: new () => T,
     editShowCrud: EditShowType<T>
   ) {
@@ -286,7 +305,7 @@ export default class Server {
    * @description - Customize the store CRUD operation for a given entity with custom hooks
    * @param type Hook to customize the base CRUD operations
    */
-  public customizeStoreCRUD<T extends typeorm.BaseEntity>(
+  public seasonStoreCRUD<T extends typeorm.BaseEntity>(
     entity: new () => T,
     editStoreCrud: EditStoreType<T>
   ) {
@@ -322,7 +341,7 @@ export default class Server {
    * @description - Customize the update CRUD operation for a given entity with custom hooks
    * @param type Hook to customize the base CRUD operations
    */
-  public customizeUpdateCRUD<T extends typeorm.BaseEntity>(
+  public seasonUpdateCRUD<T extends typeorm.BaseEntity>(
     entity: new () => T,
     editUpdateCrud: EditUpdateType<T>
   ) {
@@ -358,7 +377,7 @@ export default class Server {
    * @description - Customize the delete CRUD operation for a given entity with custom hooks
    * @param type Hook to customize the base CRUD operations
    */
-  public customizeDeleteCRUD<T extends typeorm.BaseEntity>(
+  public seasonDeleteCRUD<T extends typeorm.BaseEntity>(
     entity: new () => T,
     editDeleteCrud: EditDeleteType<T>
   ) {

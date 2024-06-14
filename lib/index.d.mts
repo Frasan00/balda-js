@@ -1,4 +1,3 @@
-import * as winston from 'winston';
 import express from 'express';
 import { ParamsDictionary } from 'express-serve-static-core';
 import QueryString from 'qs';
@@ -11,6 +10,7 @@ import cors from 'cors';
 import * as nodemailer from 'nodemailer';
 import stream from 'stream';
 import Mail from 'nodemailer/lib/mailer';
+import * as winston from 'winston';
 
 type GenericUser = {
     [key: string]: any;
@@ -60,10 +60,9 @@ type SwaggerOptions = {
     title?: string;
     version?: string;
     description?: string;
-    swaggerPath?: string;
-    customSwaggerDefinitionPath?: string;
-    bearerAuth?: {
-        validTokens: string[];
+    licence?: {
+        name: string;
+        url: string;
     };
 };
 type ServerOptions = {
@@ -181,6 +180,11 @@ declare class Server {
     redisClient: redis.RedisClientType;
     mongoClient: mongoose.Mongoose;
     private constructor();
+    /**
+     * @description - Creates a new server instance, main entry point for the framework
+     * @param serverOptions
+     * @returns
+     */
     static create(serverOptions?: ServerOptions): Promise<Server>;
     protected static parseCronExpression(cronExpression: string): {
         minute: number | null;
@@ -197,6 +201,11 @@ declare class Server {
      * @returns
      */
     static cron(cronExpression: string, target: () => any, checkInterval?: number): NodeJS.Timeout;
+    /**
+     * @description - Start the server
+     * @param cb - Callback to execute after the server has started
+     * @returns
+     */
     start(cb?: () => void): void;
     /**
      * @description - The handler will be executed before every request
@@ -225,36 +234,66 @@ declare class Server {
      * @description - Customize the index CRUD operation for a given entity with custom hooks
      * @param type Hook to customize the base CRUD operations
      */
-    customizeIndexCRUD<T extends typeorm__default.BaseEntity>(entity: new () => T, editIndexCrud: EditIndexType<T>): void;
+    seasonIndexCRUD<T extends typeorm__default.BaseEntity>(entity: new () => T, editIndexCrud: EditIndexType<T>): void;
     /**
      * @description - Customize the show CRUD operation for a given entity with custom hooks
      * @param type Hook to customize the base CRUD operations
      */
-    customizeShowCRUD<T extends typeorm__default.BaseEntity>(entity: new () => T, editShowCrud: EditShowType<T>): void;
+    seasonShowCRUD<T extends typeorm__default.BaseEntity>(entity: new () => T, editShowCrud: EditShowType<T>): void;
     /**
      * @description - Customize the store CRUD operation for a given entity with custom hooks
      * @param type Hook to customize the base CRUD operations
      */
-    customizeStoreCRUD<T extends typeorm__default.BaseEntity>(entity: new () => T, editStoreCrud: EditStoreType<T>): void;
+    seasonStoreCRUD<T extends typeorm__default.BaseEntity>(entity: new () => T, editStoreCrud: EditStoreType<T>): void;
     /**
      * @description - Customize the update CRUD operation for a given entity with custom hooks
      * @param type Hook to customize the base CRUD operations
      */
-    customizeUpdateCRUD<T extends typeorm__default.BaseEntity>(entity: new () => T, editUpdateCrud: EditUpdateType<T>): void;
+    seasonUpdateCRUD<T extends typeorm__default.BaseEntity>(entity: new () => T, editUpdateCrud: EditUpdateType<T>): void;
     /**
      * @description - Customize the delete CRUD operation for a given entity with custom hooks
      * @param type Hook to customize the base CRUD operations
      */
-    customizeDeleteCRUD<T extends typeorm__default.BaseEntity>(entity: new () => T, editDeleteCrud: EditDeleteType<T>): void;
+    seasonDeleteCRUD<T extends typeorm__default.BaseEntity>(entity: new () => T, editDeleteCrud: EditDeleteType<T>): void;
     router(): express.Router;
     use(...handlers: express.RequestHandler<ParamsDictionary, any, any, QueryString.ParsedQs, Record<string, any>>[]): express.Application;
     useCors(corsOptions?: cors.CorsOptions): express.Application;
+}
+
+declare enum HTTPRequestMethods {
+    get = "get",
+    post = "post",
+    put = "put",
+    patch = "patch",
+    delete = "delete"
+}
+declare class Router {
+    protected server: Server;
+    protected internalPrefix?: string;
+    protected middlewares?: string[];
+    constructor(prefix?: string, middlewares?: string[]);
+    /**
+     * @description Set the server for the router, note: is not necessary to call this method
+     * @param server Express Application
+     * @internal
+     * @returns void
+     */
+    setServer(server: Server): void;
+    group(cb: (router: Router) => void, prefix?: string, middlewares?: string[]): Router;
+    get(path: string, controller: express.RequestHandler, middlewares?: string[]): void;
+    post(path: string, controller: express.RequestHandler, middlewares?: string[]): void;
+    put(path: string, controller: express.RequestHandler, middlewares?: string[]): void;
+    patch(path: string, controller: express.RequestHandler, middlewares?: string[]): void;
+    delete(path: string, controller: express.RequestHandler, middlewares?: string[]): void;
+    protected parseHandler(method: HTTPRequestMethods, path: string, controller: express.RequestHandler, middlewares?: string[]): void;
+    static validatePath(str: string): string;
 }
 
 declare const _default: {
     Logger: winston.Logger;
     Server: typeof Server;
     createServer: typeof Server.create;
+    router: Router;
 };
 
 export { _default as default };

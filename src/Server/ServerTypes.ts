@@ -14,6 +14,10 @@ export type SwaggerOptions = {
   title?: string;
   version?: string;
   description?: string;
+  licence?: {
+    name: string;
+    url: string;
+  };
 };
 
 type ServerOptions = {
