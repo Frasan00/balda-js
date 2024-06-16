@@ -83,72 +83,72 @@ express.response.noContent = function () {
   return this.status(204).send();
 };
 
-express.response.partialContent = function (body: any) {
+express.response.partialContent = function (body?: any) {
   return this.status(206).send(body);
 };
 
-express.response.multipleChoices = function (message?: string) {
-  return this.status(300).send(message);
+express.response.multipleChoices = function (body?: any) {
+  return this.status(300).send(body);
 };
 
-express.response.movedPermanently = function (message?: string) {
-  return this.status(301).send(message);
+express.response.movedPermanently = function (body?: any) {
+  return this.status(301).send(body);
 };
 
-express.response.seeOther = function (message?: string) {
-  return this.status(303).send(message);
+express.response.seeOther = function (body?: any) {
+  return this.status(303).send(body);
 };
 
-express.response.found = function (message?: string) {
-  return this.status(302).send(message);
+express.response.found = function (body?: any) {
+  return this.status(302).send(body);
 };
 
-express.response.badRequest = function (message?: string) {
-  return this.status(400).send(message);
+express.response.badRequest = function (body?: any) {
+  return this.status(400).send(body);
 };
 
-express.response.unauthorized = function (message?: string) {
-  return this.status(401).send(message);
+express.response.unauthorized = function (body?: any) {
+  return this.status(401).send(body);
 };
 
-express.response.forbidden = function (message?: string) {
-  return this.status(403).send(message);
+express.response.forbidden = function (body?: any) {
+  return this.status(403).send(body);
 };
 
-express.response.notFound = function (message?: string) {
-  return this.status(404).send(message);
+express.response.notFound = function (body?: any) {
+  return this.status(404).send(body);
 };
 
-express.response.requestTimeout = function (message?: string) {
-  return this.status(408).send(message);
+express.response.requestTimeout = function (body?: any) {
+  return this.status(408).send(body);
 };
 
-express.response.conflict = function (message?: string) {
-  return this.status(409).send(message);
+express.response.conflict = function (body?: any) {
+  return this.status(409).send(body);
 };
 
-express.response.unprocessableEntity = function (message?: string) {
-  return this.status(422).send(message);
+express.response.unprocessableEntity = function (body?: any) {
+  return this.status(422).send(body);
 };
 
-express.response.tooManyRequests = function (message?: string) {
-  return this.status(429).send(message);
+express.response.tooManyRequests = function (body?: any) {
+  return this.status(429).send(body);
 };
 
-express.response.internalServerError = function (message?: string) {
-  return this.status(500).send(message);
+express.response.internalServerError = function (body?: any) {
+  return this.status(500).send(body);
 };
 
-express.response.notImplemented = function (message?: string) {
-  return this.status(501).send(message);
+express.response.notImplemented = function (body?: any) {
+  return this.status(501).send(body);
 };
 
-express.response.badGateway = function (message?: string) {
-  return this.status(502).send(message);
+express.response.badGateway = function (body?: any) {
+  return this.status(502).send(body);
 };
 
-express.response.serviceUnavailable = function (message?: string) {
-  return this.status(503).send(message);
+express.response.serviceUnavailable = function (body?: any) {
+  return this.status(503).send(body);
 };
 
 export default express;

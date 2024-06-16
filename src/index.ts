@@ -2,9 +2,9 @@ import Logger from '../Logger';
 import Server from './Server/Server';
 import * as typeorm from 'typeorm';
 import 'reflect-metadata';
-import dotenv from 'dotenv';
 import express from './Server/Customization';
 import Router from './Router/Router';
+import dotenv from 'dotenv';
 dotenv.config();
 
 const type = (process.env.DB_TYPE as 'mysql' | 'mariadb') || 'postgres';
@@ -21,6 +21,15 @@ class User extends typeorm.BaseEntity {
 
   @typeorm.Column({ type: 'varchar' })
   name: string;
+
+  @typeorm.Column({ type: 'boolean' })
+  active: boolean;
+
+  @typeorm.Column({ type: 'varchar' })
+  email: string;
+
+  @typeorm.Column({ type: 'varchar' })
+  password: string;
 }
 
 (async () => {
@@ -44,10 +53,10 @@ class User extends typeorm.BaseEntity {
         logging: true,
         synchronize: true,
       },
-      redis: {
-        url: process.env.REDIS_URL as string,
-        password: process.env.REDIS_PASSWORD as string,
-      },
+      // redis: {
+      //   url: process.env.REDIS_URL as string,
+      //   password: process.env.REDIS_PASSWORD as string,
+      // },
       // smtp: {
       //   host: process.env.SMTP_HOST as string,
       //   port: Number(process.env.SMTP_PORT),
@@ -57,8 +66,15 @@ class User extends typeorm.BaseEntity {
       //   },
       //   from: process.env.SMTP_FROM as string,
       // },
-      mongo: {
-        url: process.env.MONGO_URL as string,
+      // mongo: {
+      //   url: process.env.MONGO_URL as string,
+      // },
+      auth: {
+        accessTokenSecret: 'secret',
+        refreshTokenSecret: 'secret',
+        accessTokenExpiresIn: '1h',
+        refreshTokenExpiresIn: '1d',
+        UserModel: User,
       },
     },
     onServiceStartUp: {
@@ -77,10 +93,8 @@ class User extends typeorm.BaseEntity {
     },
   });
 
-  server.registerGlobalMiddleware(async (req, res, next) => {
+  server.registerGlobalMiddleware(async (req, _res, next) => {
     console.log('Global middleware');
-
-    req.user = await server.sql.getRepository(User).findOneByOrFail({ id: 1 });
     next();
   });
 
@@ -94,9 +108,9 @@ class User extends typeorm.BaseEntity {
 
   server.makeCRUD(User);
   server.seasonIndexCRUD(User, {
-    afterFetch: async (req, data, res) => {
+    afterFetch: async (req, _data, res) => {
       const user = req.getUser<User>();
-      res.ok('User retrieved, ' + JSON.stringify(user));
+      return res.ok('User retrieved, ' + JSON.stringify(user));
     },
     middlewares: ['log'],
   });
@@ -112,7 +126,7 @@ class User extends typeorm.BaseEntity {
     (router) => {
       router.get(
         '/internal-cool-path',
-        (req, res) => {
+        (_eq, res) => {
           res.ok('Internal cool path');
         },
         ['log']

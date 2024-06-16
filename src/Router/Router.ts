@@ -1,6 +1,7 @@
 import Server from '../Server/Server';
 import { parseMiddlewares } from '../Server/ServerUtils';
 import express from '../Server/Customization';
+import Logger from '../../Logger';
 
 enum HTTPRequestMethods {
   get = 'get',
@@ -68,7 +69,7 @@ export class Router {
     path: string,
     controller: express.RequestHandler,
     middlewares?: string[]
-  ) {
+  ): void {
     if (!this.server) {
       throw new Error('Server not set');
     }
@@ -77,22 +78,34 @@ export class Router {
       path = Router.validatePath(`${this.internalPrefix}${path}`);
     }
 
+    const wrappedController = async (
+      req: express.Request,
+      res: express.Response,
+      next: express.NextFunction
+    ) => {
+      try {
+        return await controller(req, res, next);
+      } catch (error) {
+        next(error);
+      }
+    };
+
     const parsedMiddlewares = middlewares ? parseMiddlewares(this.server, middlewares) : [];
     switch (method) {
       case HTTPRequestMethods.get:
-        this.server.app.get(path, parsedMiddlewares, controller);
+        this.server.app.get(path, ...parsedMiddlewares, wrappedController);
         return;
       case HTTPRequestMethods.post:
-        this.server.app.post(path, parsedMiddlewares, controller);
+        this.server.app.post(path, ...parsedMiddlewares, wrappedController);
         return;
       case HTTPRequestMethods.put:
-        this.server.app.put(path, parsedMiddlewares, controller);
+        this.server.app.put(path, ...parsedMiddlewares, wrappedController);
         return;
       case HTTPRequestMethods.patch:
-        this.server.app.patch(path, parsedMiddlewares, controller);
+        this.server.app.patch(path, ...parsedMiddlewares, wrappedController);
         return;
       case HTTPRequestMethods.delete:
-        this.server.app.delete(path, parsedMiddlewares, controller);
+        this.server.app.delete(path, ...parsedMiddlewares, wrappedController);
         return;
       default:
         return;

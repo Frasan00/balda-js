@@ -8,12 +8,14 @@ import SMTPTransport from 'nodemailer/lib/smtp-transport';
 import express from './Customization';
 import Logger from '../../Logger';
 import Server from './Server';
+import AuthService from '../Auth/auth';
 
 export type ServicesType = {
   datasource: DataSource;
   redisClient: RedisClientType<any>;
   mongoClient: mongoose.Mongoose;
   mailer: Mailer;
+  auth: AuthService;
 };
 
 export async function parseServices(
@@ -24,6 +26,7 @@ export async function parseServices(
   let redisClient: RedisClientType<any> | null = null;
   let mongoClient: mongoose.Mongoose | null = null;
   let mailer: Mailer | null = null;
+  let auth: AuthService | null = null;
 
   if (services?.sql) {
     datasource = await parseSqlService(services.sql);
@@ -46,11 +49,16 @@ export async function parseServices(
     onServiceStartUp?.smtp?.();
   }
 
+  if (services?.auth) {
+    auth = new AuthService(services.auth);
+  }
+
   return {
     datasource: datasource as DataSource,
     redisClient: redisClient as RedisClientType<any>,
     mongoClient: mongoClient as mongoose.Mongoose,
     mailer: mailer as Mailer,
+    auth: auth as AuthService,
   };
 }
 
@@ -144,14 +152,12 @@ async function parseSqlService(sqlOptions: DataSourceOptions): Promise<DataSourc
 
 export function errorMiddleware(
   error: any,
-  req: express.Request,
+  _req: express.Request,
   res: express.Response,
-  next: express.NextFunction
-): void {
+  _next: express.NextFunction
+) {
   Logger.error(error);
-  return res.internalServerError({
-    message: String(error),
-  });
+  return res.internalServerError({ error: 'Internal server error', message: String(error) });
 }
 
 export function parseMiddlewares(server: Server, middlewares: string[]): express.RequestHandler[] {

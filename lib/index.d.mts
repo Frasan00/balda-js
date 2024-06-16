@@ -65,6 +65,13 @@ type SwaggerOptions = {
         url: string;
     };
 };
+type AuthOptions = {
+    accessTokenSecret: string;
+    refreshTokenSecret: string;
+    accessTokenExpiresIn: string;
+    refreshTokenExpiresIn: string;
+    UserModel: typeof typeorm.BaseEntity;
+};
 type ServerOptions = {
     port: number;
     host: string;
@@ -76,7 +83,7 @@ type ServerOptions = {
             url: string;
         };
         smtp?: string | SMTPTransport | SMTPTransport.Options;
-        auth?: boolean;
+        auth?: AuthOptions;
         swagger?: SwaggerOptions;
     };
     onServiceStartUp?: {
@@ -168,6 +175,48 @@ declare class Mailer {
     sendMail(to: string, subject: string, text: string | Buffer | stream.Readable | Mail.AttachmentLike | undefined, failOnError?: boolean, from?: string): Promise<void>;
 }
 
+type AuthCodes = 400 | 401 | 403 | 404;
+declare class AuthService {
+    protected accessTokenSecret: string;
+    protected refreshTokenSecret: string;
+    protected accessTokenExpiresIn: string;
+    protected refreshTokenExpiresIn: string;
+    userRepository: typeorm.Repository<typeorm.BaseEntity>;
+    constructor(authOptions: AuthOptions);
+    /**
+     * @description Registers a user and saves it to the database with a hashed password
+     * @param user - TypeORM Entity for the user model, user must have a 'password' field and an 'email' field
+     */
+    register<T extends typeorm.BaseEntity>(user: T): Promise<T>;
+    /**
+     * @description Logs a user in and returns a JWT token
+     * @param {string} email - The email of the user
+     * @param {string} password - The password of the user
+     * @returns {string} - The JWT tokens both access and refresh for the user
+     * @returns {null} - If the user does not exist
+     */
+    attemptLogin(email: string, password: string): Promise<{
+        status: string;
+        accessToken: string;
+        refreshToken: string;
+    } | {
+        status: string;
+        code: AuthCodes;
+    }>;
+    getAccessTokenPayload(token: string): any;
+    getRefreshTokenPayload(token: string): any;
+    generateAccessToken(id: any, jti: string): string;
+    generateRefreshToken(id: any, jti: string): string;
+    /**
+     * @description Refreshes the JWT token
+     * @param req
+     * @param res
+     * @param auth
+     * @returns {string} token
+     */
+    refreshToken(req: express.Request, res: express.Response, auth: AuthService): Promise<void | express.Response<any, Record<string, any>>>;
+}
+
 declare class Server {
     protected services: ServerOptions['services'];
     protected cruds: Map<new () => typeorm__default.BaseEntity, Record<string, CRUDType<typeorm__default.BaseEntity>>>;
@@ -179,10 +228,11 @@ declare class Server {
     sql: DataSource;
     redisClient: redis.RedisClientType;
     mongoClient: mongoose.Mongoose;
+    auth: AuthService;
     private constructor();
     /**
      * @description - Creates a new server instance, main entry point for the framework
-     * @param serverOptions
+     * @param serverOptions - The options to create the server, default port is 80 and host is '0.0.0.0'
      * @returns
      */
     static create(serverOptions?: ServerOptions): Promise<Server>;
@@ -229,7 +279,7 @@ declare class Server {
      * @description - Creates an index, show, create, update, and delete operation
      * @param entity - The entity to create CRUD operations for
      */
-    makeCRUD<T extends typeorm__default.BaseEntity>(entity: new () => T): void;
+    makeCRUD<T extends typeorm__default.BaseEntity>(entity: new () => T, apiVersion?: string): void;
     /**
      * @description - Customize the index CRUD operation for a given entity with custom hooks
      * @param type Hook to customize the base CRUD operations
@@ -258,6 +308,7 @@ declare class Server {
     router(): express.Router;
     use(...handlers: express.RequestHandler<ParamsDictionary, any, any, QueryString.ParsedQs, Record<string, any>>[]): express.Application;
     useCors(corsOptions?: cors.CorsOptions): express.Application;
+    protected registerAuthRoutes(): void;
 }
 
 declare enum HTTPRequestMethods {

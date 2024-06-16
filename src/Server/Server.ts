@@ -27,6 +27,9 @@ import {
 import Mailer from '../Mailer/Mailer';
 import { registerOrUpdateCRUDRoutes } from '../CRUD/CrudUtils';
 import expressOasGenerator, { SPEC_OUTPUT_FILE_BEHAVIOR } from 'express-oas-generator';
+import AuthService, { authMiddleware } from '../Auth/auth';
+import bodyParser from 'body-parser';
+import Logger from '../../Logger';
 
 export default class Server {
   protected services: ServerOptions['services'];
@@ -39,12 +42,11 @@ export default class Server {
   public sql: DataSource;
   public redisClient: redis.RedisClientType;
   public mongoClient: mongoose.Mongoose;
+  public auth: AuthService;
 
   private constructor(services: ServicesType, serverOptions: ServerOptions) {
-    // Set the server for the router
-    Router.setServer(this);
-
     this.app = serverOptions?.expressInstance || express();
+    Router.setServer(this);
     if (!!serverOptions?.services?.swagger) {
       expressOasGenerator.init(this.app as express.Express, {
         schemes: ['http'],
@@ -91,7 +93,12 @@ export default class Server {
         },
       });
     }
-    this.app.use(errorMiddleware);
+
+    // base middlewares
+    this.app.use(bodyParser.urlencoded({ extended: false }));
+    this.app.use(bodyParser.json());
+    this.app.use(bodyParser.raw());
+    this.app.use(bodyParser.text());
 
     this.port = serverOptions.port;
     this.host = serverOptions.host;
@@ -108,12 +115,13 @@ export default class Server {
     this.sql = services.datasource;
     this.redisClient = services.redisClient as redis.RedisClientType;
     this.mongoClient = services.mongoClient;
+    this.auth = services.auth;
     this.middlewares = {};
   }
 
   /**
    * @description - Creates a new server instance, main entry point for the framework
-   * @param serverOptions
+   * @param serverOptions - The options to create the server, default port is 80 and host is '0.0.0.0'
    * @returns
    */
   public static async create(
@@ -126,6 +134,7 @@ export default class Server {
         redisClient: services.redisClient,
         mongoClient: services.mongoClient,
         mailer: services.mailer,
+        auth: services.auth,
       },
       serverOptions
     );
@@ -176,6 +185,15 @@ export default class Server {
    * @returns
    */
   public start(cb?: () => void) {
+    if (this.auth) {
+      this.registerAuthRoutes();
+      this.registerMiddleware({
+        handler: authMiddleware as express.RequestHandler,
+        name: 'auth',
+      });
+    }
+
+    this.app.use(errorMiddleware);
     this.app.listen(this.port, this.host, cb);
   }
 
@@ -185,7 +203,15 @@ export default class Server {
    * @returns
    */
   public async registerGlobalMiddleware(handler: express.RequestHandler): Promise<void> {
-    this.app.use(handler);
+    const wrappedHandler: express.RequestHandler = async (req, res, next) => {
+      try {
+        await handler(req, res, next);
+      } catch (error) {
+        next(error);
+      }
+    };
+
+    this.app.use(wrappedHandler);
   }
 
   /**
@@ -202,8 +228,16 @@ export default class Server {
       throw new Error(`Middleware with name ${handlerData.name} already exists`);
     }
 
+    const wrappedHandler: express.RequestHandler = async (req, res, next) => {
+      try {
+        await handlerData.handler(req, res, next);
+      } catch (error) {
+        next(error);
+      }
+    };
+
     if (handlerData.name) {
-      this.middlewares[handlerData.name] = handlerData.handler;
+      this.middlewares[handlerData.name] = wrappedHandler;
       return;
     }
 
@@ -211,7 +245,7 @@ export default class Server {
       throw new Error(`Middleware with name ${handlerData.handler.name} already exists`);
     }
 
-    this.middlewares[handlerData.handler.name] = handlerData.handler;
+    this.middlewares[handlerData.handler.name] = wrappedHandler;
   }
 
   /**
@@ -220,11 +254,11 @@ export default class Server {
    * @description - Creates an index, show, create, update, and delete operation
    * @param entity - The entity to create CRUD operations for
    */
-  public makeCRUD<T extends typeorm.BaseEntity>(entity: new () => T): void {
+  public makeCRUD<T extends typeorm.BaseEntity>(entity: new () => T, apiVersion?: string): void {
     let entityName = entity.name.toLowerCase();
     entityName = entityName.endsWith('s') ? entityName : `${entityName}s`;
 
-    const cruds = makeBaseCruds<typeorm.BaseEntity>(entityName);
+    const cruds = makeBaseCruds<typeorm.BaseEntity>(entityName, apiVersion);
     this.cruds.set(entity, cruds);
     registerOrUpdateCRUDRoutes<typeorm.BaseEntity>(this, cruds, entity);
   }
@@ -427,5 +461,53 @@ export default class Server {
 
   public useCors(corsOptions?: cors.CorsOptions): express.Application {
     return this.app.use(cors(corsOptions));
+  }
+
+  protected registerAuthRoutes() {
+    Router.post('/sign-up', async (req, res) => {
+      const userData = req.body;
+
+      const user = await this.auth.register(userData);
+      return res.ok(user);
+    });
+
+    Router.post('/sign-in', async (req, res) => {
+      const { email, password } = req.body;
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!email) {
+        return res.badRequest({ error: 'Email is required' });
+      }
+
+      if (!emailRegex.test(email)) {
+        return res.badRequest({ error: 'Invalid email' });
+      }
+
+      if (!password) {
+        return res.badRequest({ error: 'Password is required' });
+      }
+
+      const response = await this.auth.attemptLogin(email, password);
+      if (
+        typeof response === 'object' &&
+        'status' in response &&
+        response.status === 'failed' &&
+        'code' in response
+      ) {
+        switch (response.code) {
+          case 404:
+            return res.notFound({ error: 'User not found' });
+          case 401:
+            return res.unauthorized({ error: 'Invalid credentials' });
+          case 403:
+            return res.forbidden({ error: 'User not verified' });
+          case 404:
+            return res.notFound({ error: 'User not found' });
+          default:
+            throw new Error('Unknown error');
+        }
+      }
+
+      return res.ok(response);
+    });
   }
 }

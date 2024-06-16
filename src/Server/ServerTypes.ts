@@ -20,6 +20,14 @@ export type SwaggerOptions = {
   };
 };
 
+export type AuthOptions = {
+  accessTokenSecret: string;
+  refreshTokenSecret: string;
+  accessTokenExpiresIn: string;
+  refreshTokenExpiresIn: string;
+  UserModel: typeof typeorm.BaseEntity;
+};
+
 type ServerOptions = {
   port: number;
   host: string;
@@ -29,7 +37,7 @@ type ServerOptions = {
     redis?: RedisClientOptions;
     mongo?: mongoose.ConnectOptions & { url: string };
     smtp?: string | SMTPTransport | SMTPTransport.Options;
-    auth?: boolean;
+    auth?: AuthOptions;
     swagger?: SwaggerOptions;
   };
   onServiceStartUp?: {

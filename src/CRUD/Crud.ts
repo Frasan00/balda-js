@@ -11,7 +11,8 @@ export enum CrudTypeEnum {
 }
 
 export function makeBaseCruds<T extends typeorm.BaseEntity>(
-  path: string
+  path: string,
+  apiVersion?: string
 ): {
   indexCrud: IndexType<T>;
   showCrud: ShowType<T>;
@@ -19,8 +20,11 @@ export function makeBaseCruds<T extends typeorm.BaseEntity>(
   updateCrud: UpdateType<T>;
   deleteCrud: DeleteType<T>;
 } {
+  apiVersion = apiVersion?.replace(/\//g, '');
+  const indexPath = path && path.startsWith('/') ? path : `/${path}`;
+
   const indexCrud: IndexType<T> = {
-    path: path && path.startsWith('/') ? path : `/${path}`,
+    path: apiVersion ? `/${apiVersion}${indexPath}` : indexPath,
     method: 'get',
     beforeFetch: async (_req: express.Request) => {},
     duringFetch: async (
@@ -38,8 +42,9 @@ export function makeBaseCruds<T extends typeorm.BaseEntity>(
     middlewares: [],
   };
 
+  const showPath = path && path.startsWith('/') ? `${path}/:id` : `/${path}/:id`;
   const showCrud: ShowType<T> = {
-    path: path && path.startsWith('/') ? `${path}/:id` : `/${path}/:id`,
+    path: apiVersion ? `/${apiVersion}${showPath}` : showPath,
     method: 'get',
     beforeFetch: async (_req: express.Request) => {},
     duringFetch: async (
@@ -57,8 +62,9 @@ export function makeBaseCruds<T extends typeorm.BaseEntity>(
     middlewares: [],
   };
 
+  const storePath = path && path.startsWith('/') ? `${path}` : `/${path}`;
   const storeCrud: StoreType<T> = {
-    path: path && path.startsWith('/') ? `${path}` : `/${path}`,
+    path: apiVersion ? `/${apiVersion}${storePath}` : storePath,
     method: 'post',
     beforeCreate: async (_req: express.Request) => {},
     duringCreate: async (
@@ -76,8 +82,9 @@ export function makeBaseCruds<T extends typeorm.BaseEntity>(
     middlewares: [],
   };
 
+  const updatePath = path && path.startsWith('/') ? `${path}/:id` : `/${path}/:id`;
   const updateCrud: UpdateType<T> = {
-    path: path && path.startsWith('/') ? `${path}/:id` : `/${path}/:id`,
+    path: apiVersion ? `/${apiVersion}${updatePath}` : updatePath,
     method: 'patch',
     beforeUpdate: async (_req: express.Request) => {},
     duringUpdate: async (
@@ -99,8 +106,9 @@ export function makeBaseCruds<T extends typeorm.BaseEntity>(
     middlewares: [],
   };
 
+  const deletePath = path && path.startsWith('/') ? `${path}/:id` : `/${path}/:id`;
   const deleteCrud: DeleteType<T> = {
-    path: path && path.startsWith('/') ? `${path}/:id` : `/${path}/:id`,
+    path: apiVersion ? `/${apiVersion}${deletePath}` : deletePath,
     method: 'delete',
     beforeDelete: async (_req: express.Request) => {},
     duringDelete: async (
