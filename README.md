@@ -47,7 +47,7 @@ Orbit-js has built-in support for different types of services (all included serv
 
 
 ## Error Handling
-- Every Handler make with makeCRUD method or defined using the Router object automatically catches errors and returns an internal server error to the client even if not handled in the code itself
+- Every Handler made with makeCRUD method or defined using the Router object automatically catches errors and returns an internal server error to the client even if not handled in the code itself
 
 
 ## Request
