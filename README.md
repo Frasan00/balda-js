@@ -30,8 +30,10 @@ const server = await createServer({
 
 ## Server specific features
 
+- [Error-handling](#error-handling)
 - [Request](#request)
 - [Response](#response)
+- [Routes](#routes)
 - [middlewares](#middlewares)
 - [Make-crud](#make-crud)
 - [Season-base-cruds](#season-base-cruds)
@@ -44,7 +46,11 @@ Orbit-js has built-in support for different types of services (all included serv
 - MORE COMING!!
 
 
-### Request
+## Error Handling
+- Every Handler make with makeCRUD method or defined using the Router object automatically catches errors and returns an internal server error to the client even if not handled in the code itself
+
+
+## Request
 - The Request type has been revisited in order to support some extra features
 ```typescript
 // request has a user type that can be accessed in every moment
@@ -61,7 +67,7 @@ const data = req.pickEntityValues(User, ['name', 'email']);
 ```
 
 
-### Response
+## Response
 - Express Responses have been extended in order to server text based methods for http responses
 ```typescript
 res.continue();
@@ -94,8 +100,38 @@ res.badGateway({});
 res.serviceUnavailable({});
 ```
 
+## Router
+- There is a built in router that makes easier to define nested or more complex route hierarchy
+```typescript
+import { Router } from 'orbit-js';
 
-### Middlewares
+// simple route definition
+Router.get(
+    '/cool-path',
+    (_req, res) => {
+        res.ok('Cool path');
+    },
+    ['log', 'auth']
+);
+
+// nested route definition
+Router.group(
+    (router) => {
+        router.get(
+            '/internal-cool-path',
+            (_req, res) => {
+                res.ok('Internal cool path');
+            },
+            ['log']
+        );
+    },
+    '/group',
+    ['log']
+);
+```
+
+
+## Middlewares
 - You can both register a global middleware that runs on each request or a middleware that you can reference by it's name as a string in the route definitions
 ```typescript
 server.registerGlobalMiddleware(async (req, _res, next) => {
@@ -115,7 +151,7 @@ server.registerMiddleware({
 ```
 
 
-### Make CRUD
+## Make CRUD
 - You can automate base CRUDs operations on typeorm models with just a function
 ```typescript
 import * as typeorm from 'typeorm';
@@ -155,7 +191,7 @@ server.makeCRUD(User, [], 'v2'); // generates for routes with basic controllers 
 ```
 
 
-### Season Base CRUDS
+## Season Base CRUDS
 - You can customize every base CRUD operation generated with server.makeCRUD with custom hooks
 ```typescript
 server.seasonIndexCRUD(User, {
