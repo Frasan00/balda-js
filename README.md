@@ -54,7 +54,7 @@ Orbit-js has built-in support for different types of services (all included serv
 - The Request type has been revisited in order to support some extra features
 ```typescript
 // request has a user type that can be accessed in every moment
-req.user = this.server.sql.getRepository()
+req.user = server.sql.getRepository()
     .createQueryBuilder(this.auth.userRepository.metadata.targetName)
     .where('id = :id', { id: payload.id })
     .getOne();
