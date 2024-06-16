@@ -1,12 +1,21 @@
 import express from 'express';
+import * as typeorm from 'typeorm';
 
 type GenericUser = {
   [key: string]: any;
 };
 
+type Only<T, K extends keyof T> = {
+  [P in K]: T[P];
+};
+
 declare global {
   namespace Express {
     interface Request {
+      pickEntityValues: <T extends typeorm.BaseEntity, K extends keyof T>(
+        entity: new () => T,
+        keys: K[]
+      ) => Only<T, K>;
       user: GenericUser;
       getUser<T>(): T;
     }
@@ -43,6 +52,29 @@ declare global {
     }
   }
 }
+
+/**
+ * @description Retrieves only the specified keys from the request body or query parameters (body as priority)
+ * @description If the key is not found in the request body or query or isn't included in the given Model, it will not be given in the result
+ * @param entity - typeorm entity to use as a schema
+ * @param keys - keys to extract from the request body or query
+ * @returns
+ */
+express.request.pickEntityValues = function <T extends object, K extends keyof T>(
+  entity: new () => T,
+  keys: K[]
+): Only<T, K> {
+  const result: any = {};
+
+  const entityInstance = new entity();
+  keys.forEach((key) => {
+    if (key in entityInstance) {
+      result[key] = this.body[key] || this.query[key];
+    }
+  });
+
+  return result as Only<T, K>;
+};
 
 express.request.user = {};
 

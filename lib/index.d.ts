@@ -1,10 +1,10 @@
 import express from 'express';
+import * as typeorm from 'typeorm';
+import typeorm__default, { DataSource } from 'typeorm';
 import { ParamsDictionary } from 'express-serve-static-core';
 import QueryString from 'qs';
 import mongoose from 'mongoose';
 import redis, { RedisClientOptions } from 'redis';
-import * as typeorm from 'typeorm';
-import typeorm__default, { DataSource } from 'typeorm';
 import SMTPTransport from 'nodemailer/lib/smtp-transport';
 import cors from 'cors';
 import * as nodemailer from 'nodemailer';
@@ -15,9 +15,13 @@ import * as winston from 'winston';
 type GenericUser = {
     [key: string]: any;
 };
+type Only<T, K extends keyof T> = {
+    [P in K]: T[P];
+};
 declare global {
     namespace Express {
         interface Request {
+            pickEntityValues: <T extends typeorm.BaseEntity, K extends keyof T>(entity: new () => T, keys: K[]) => Only<T, K>;
             user: GenericUser;
             getUser<T>(): T;
         }

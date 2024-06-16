@@ -94,7 +94,14 @@ class User extends typeorm.BaseEntity {
   });
 
   server.registerGlobalMiddleware(async (req, _res, next) => {
-    console.log('Global middleware');
+    interface Example {
+      name: string;
+      email: string;
+    }
+
+    const data = req.pickEntityValues(User, ['name', 'email']);
+    console.log('Data: ', data.email);
+
     next();
   });
 
