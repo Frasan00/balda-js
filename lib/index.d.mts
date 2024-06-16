@@ -207,14 +207,6 @@ declare class AuthService {
     getRefreshTokenPayload(token: string): any;
     generateAccessToken(id: any, jti: string): string;
     generateRefreshToken(id: any, jti: string): string;
-    /**
-     * @description Refreshes the JWT token
-     * @param req
-     * @param res
-     * @param auth
-     * @returns {string} token
-     */
-    refreshToken(req: express.Request, res: express.Response, auth: AuthService): Promise<void | express.Response<any, Record<string, any>>>;
 }
 
 declare class Server {
@@ -253,6 +245,7 @@ declare class Server {
     static cron(cronExpression: string, target: () => any, checkInterval?: number): NodeJS.Timeout;
     /**
      * @description - Start the server
+     * @description - If auth is enabled, it will register the auth routes and the 'auth' middleware
      * @param cb - Callback to execute after the server has started
      * @returns
      */
@@ -279,7 +272,7 @@ declare class Server {
      * @description - Creates an index, show, create, update, and delete operation
      * @param entity - The entity to create CRUD operations for
      */
-    makeCRUD<T extends typeorm__default.BaseEntity>(entity: new () => T, apiVersion?: string): void;
+    makeCRUD<T extends typeorm__default.BaseEntity>(entity: new () => T, middlewares?: string[], apiVersion?: string): void;
     /**
      * @description - Customize the index CRUD operation for a given entity with custom hooks
      * @param type Hook to customize the base CRUD operations
@@ -309,6 +302,7 @@ declare class Server {
     use(...handlers: express.RequestHandler<ParamsDictionary, any, any, QueryString.ParsedQs, Record<string, any>>[]): express.Application;
     useCors(corsOptions?: cors.CorsOptions): express.Application;
     protected registerAuthRoutes(): void;
+    protected authMiddleware(req: express.Request, res: express.Response, next: express.NextFunction): Promise<void>;
 }
 
 declare enum HTTPRequestMethods {

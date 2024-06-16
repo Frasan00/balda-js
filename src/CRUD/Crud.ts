@@ -12,6 +12,7 @@ export enum CrudTypeEnum {
 
 export function makeBaseCruds<T extends typeorm.BaseEntity>(
   path: string,
+  middlewares: string[],
   apiVersion?: string
 ): {
   indexCrud: IndexType<T>;
@@ -39,7 +40,7 @@ export function makeBaseCruds<T extends typeorm.BaseEntity>(
     afterFetch: async (_req: express.Request, duringFetchData: T[], res: express.Response) => {
       res.ok(duringFetchData || []);
     },
-    middlewares: [],
+    middlewares: middlewares,
   };
 
   const showPath = path && path.startsWith('/') ? `${path}/:id` : `/${path}/:id`;
@@ -59,7 +60,7 @@ export function makeBaseCruds<T extends typeorm.BaseEntity>(
     afterFetch: async (_req: express.Request, duringFetchData: T, res: express.Response) => {
       res.ok(duringFetchData || []);
     },
-    middlewares: [],
+    middlewares: middlewares,
   };
 
   const storePath = path && path.startsWith('/') ? `${path}` : `/${path}`;
@@ -79,7 +80,7 @@ export function makeBaseCruds<T extends typeorm.BaseEntity>(
     afterCreate: async (_req: express.Request, duringCreateData: T, res: express.Response) => {
       res.ok(duringCreateData);
     },
-    middlewares: [],
+    middlewares: middlewares,
   };
 
   const updatePath = path && path.startsWith('/') ? `${path}/:id` : `/${path}/:id`;
@@ -103,7 +104,7 @@ export function makeBaseCruds<T extends typeorm.BaseEntity>(
     afterUpdate: async (_req: express.Request, duringUpdateData: T, res: express.Response) => {
       res.ok(duringUpdateData);
     },
-    middlewares: [],
+    middlewares: middlewares,
   };
 
   const deletePath = path && path.startsWith('/') ? `${path}/:id` : `/${path}/:id`;
@@ -128,7 +129,7 @@ export function makeBaseCruds<T extends typeorm.BaseEntity>(
     afterDelete: async (_req: express.Request, duringDeleteData: T, res: express.Response) => {
       res.ok(duringDeleteData);
     },
-    middlewares: [],
+    middlewares: middlewares,
   };
 
   return {

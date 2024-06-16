@@ -27,7 +27,7 @@ import {
 import Mailer from '../Mailer/Mailer';
 import { registerOrUpdateCRUDRoutes } from '../CRUD/CrudUtils';
 import expressOasGenerator, { SPEC_OUTPUT_FILE_BEHAVIOR } from 'express-oas-generator';
-import AuthService, { authMiddleware } from '../Auth/auth';
+import AuthService from '../Auth/auth';
 import bodyParser from 'body-parser';
 import Logger from '../../Logger';
 
@@ -102,7 +102,11 @@ export default class Server {
 
     this.port = serverOptions.port;
     this.host = serverOptions.host;
-    this.cruds = new Map();
+    this.cruds = new Map<
+      new () => typeorm.BaseEntity,
+      Record<string, CRUDType<typeorm.BaseEntity>>
+    >();
+    this.middlewares = {};
     this.services = {
       sql: serverOptions?.services?.sql,
       redis: serverOptions?.services?.redis,
@@ -116,7 +120,14 @@ export default class Server {
     this.redisClient = services.redisClient as redis.RedisClientType;
     this.mongoClient = services.mongoClient;
     this.auth = services.auth;
-    this.middlewares = {};
+
+    if (this.auth) {
+      this.registerAuthRoutes.bind(this)();
+      this.registerMiddleware({
+        handler: this.authMiddleware.bind(this),
+        name: 'auth',
+      });
+    }
   }
 
   /**
@@ -181,18 +192,11 @@ export default class Server {
 
   /**
    * @description - Start the server
+   * @description - If auth is enabled, it will register the auth routes and the 'auth' middleware
    * @param cb - Callback to execute after the server has started
    * @returns
    */
   public start(cb?: () => void) {
-    if (this.auth) {
-      this.registerAuthRoutes();
-      this.registerMiddleware({
-        handler: authMiddleware as express.RequestHandler,
-        name: 'auth',
-      });
-    }
-
     this.app.use(errorMiddleware);
     this.app.listen(this.port, this.host, cb);
   }
@@ -254,11 +258,15 @@ export default class Server {
    * @description - Creates an index, show, create, update, and delete operation
    * @param entity - The entity to create CRUD operations for
    */
-  public makeCRUD<T extends typeorm.BaseEntity>(entity: new () => T, apiVersion?: string): void {
+  public makeCRUD<T extends typeorm.BaseEntity>(
+    entity: new () => T,
+    middlewares: string[] = [],
+    apiVersion?: string
+  ): void {
     let entityName = entity.name.toLowerCase();
     entityName = entityName.endsWith('s') ? entityName : `${entityName}s`;
 
-    const cruds = makeBaseCruds<typeorm.BaseEntity>(entityName, apiVersion);
+    const cruds = makeBaseCruds<typeorm.BaseEntity>(entityName, middlewares, apiVersion);
     this.cruds.set(entity, cruds);
     registerOrUpdateCRUDRoutes<typeorm.BaseEntity>(this, cruds, entity);
   }
@@ -464,14 +472,63 @@ export default class Server {
   }
 
   protected registerAuthRoutes() {
-    Router.post('/sign-up', async (req, res) => {
+    Router.post('/auth/sign-up', async (req, res) => {
       const userData = req.body;
 
       const user = await this.auth.register(userData);
       return res.ok(user);
     });
 
-    Router.post('/sign-in', async (req, res) => {
+    Router.post('/auth/refresh', async (req, res) => {
+      if (!req.body.token) {
+        return res.badRequest({
+          error: 'Bad Request',
+          message: 'Missing token field in request body',
+        });
+      }
+
+      const refreshToken = req.body.token;
+      try {
+        const payload = this.auth.getRefreshTokenPayload(refreshToken) as {
+          id: any;
+          acccessTokenJti: string;
+          exp: number;
+        };
+        if (!payload) {
+          return res.unauthorized({
+            message: 'Invalid refresh token',
+          });
+        }
+
+        if (payload.exp && Date.now() >= payload.exp * 1000) {
+          return res.forbidden({
+            message: 'Refresh token expired',
+          });
+        }
+
+        const associatedUser = (await this.auth.userRepository
+          .createQueryBuilder(this.auth.userRepository.metadata.targetName)
+          .where('id = :id', { id: payload.id })
+          .getOne()) as (typeorm.BaseEntity & { id: any }) | null;
+        if (!associatedUser) {
+          return res.notFound({
+            message: 'User not found',
+          });
+        }
+
+        const jti = crypto.randomUUID();
+        const accessToken = this.auth.generateAccessToken(associatedUser.id, jti);
+        const newRefreshToken = this.auth.generateRefreshToken(associatedUser.id, jti);
+        return res.send({ accessToken, newRefreshToken });
+      } catch (error) {
+        Logger.error(error);
+        return res.unauthorized({
+          message: String(error),
+        });
+      }
+    });
+
+    Router.post('/auth/sign-in', async (req, res) => {
       const { email, password } = req.body;
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!email) {
@@ -509,5 +566,55 @@ export default class Server {
 
       return res.ok(response);
     });
+  }
+
+  protected async authMiddleware(
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction
+  ) {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      return res.unauthorized({
+        message: 'No token provided in Authorization header',
+      });
+    }
+
+    try {
+      const payload = this.auth.getAccessTokenPayload(token) as {
+        id: any;
+        jti: string;
+        exp: number;
+      };
+
+      if (!payload) {
+        return res.unauthorized({
+          message: 'No payload found in token',
+        });
+      }
+
+      if (payload.exp && Date.now() >= payload.exp * 1000) {
+        return res.forbidden({
+          message: 'Token expired',
+        });
+      }
+
+      req.user = this.auth.userRepository
+        .createQueryBuilder(this.auth.userRepository.metadata.targetName)
+        .where('id = :id', { id: payload.id })
+        .getOne();
+      if (!req.user) {
+        return res.notFound({
+          message: 'User not found',
+        });
+      }
+
+      next();
+    } catch (error) {
+      Logger.error(error);
+      return res.unauthorized({
+        message: String(error),
+      });
+    }
   }
 }

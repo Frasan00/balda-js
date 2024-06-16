@@ -3,6 +3,7 @@ import * as typeorm from 'typeorm';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import express from '../Server/Customization';
+import Logger from '../../Logger';
 
 type AuthCodes = 400 | 401 | 403 | 404;
 
@@ -104,117 +105,6 @@ export default class AuthService {
   public generateRefreshToken(id: any, jti: string): string {
     return jwt.sign({ id, acccessTokenJti: jti }, this.refreshTokenSecret, {
       expiresIn: this.refreshTokenExpiresIn,
-    });
-  }
-
-  /**
-   * @description Refreshes the JWT token
-   * @param req
-   * @param res
-   * @param auth
-   * @returns {string} token
-   */
-  public async refreshToken(req: express.Request, res: express.Response, auth: AuthService) {
-    if (!req.body.token) {
-      return res.badRequest({
-        error: 'Bad Request',
-        message: 'Missing token field in request body',
-      });
-    }
-
-    const refreshToken = req.body.token;
-    try {
-      const payload = auth.getRefreshTokenPayload(refreshToken) as {
-        id: any;
-        acccessTokenJti: string;
-        exp: number;
-      };
-      if (!payload) {
-        return res.unauthorized({
-          message: 'Invalid refresh token',
-        });
-      }
-
-      if (payload.exp && Date.now() >= payload.exp * 1000) {
-        return res.forbidden({
-          message: 'Refresh token expired',
-        });
-      }
-
-      const associatedUser = auth.userRepository
-        .createQueryBuilder(auth.userRepository.metadata.targetName)
-        .where('id = :id', { id: payload.id })
-        .getOne();
-      if (!associatedUser) {
-        return res.notFound({
-          message: 'User not found',
-        });
-      }
-
-      const jti = crypto.randomUUID();
-      const accessToken = auth.generateAccessToken(payload.id, jti);
-      return res.send({ accessToken });
-    } catch (e) {
-      return res.unauthorized({
-        message: 'Unauthorized',
-      });
-    }
-  }
-}
-
-/**
- * @description Middleware to check if the user is authenticated via bearer token, only valid if auth server is enabled
- * @param req
- * @param res
- * @param next
- */
-export function authMiddleware(
-  req: express.Request,
-  res: express.Response,
-  next: express.NextFunction,
-  auth: AuthService
-) {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) {
-    return res.unauthorized({
-      message: 'No token provided in Authorization header',
-    });
-  }
-
-  try {
-    const payload = auth.getAccessTokenPayload(token) as { id: any; jti: string; exp: number };
-    if (!payload) {
-      return res.unauthorized({
-        message: 'No payload found in token',
-      });
-    }
-
-    if (payload.id !== req.user.id) {
-        return res.forbidden({
-            message: 'Invalid token',
-        });
-    }
-
-    if (payload.exp && Date.now() >= payload.exp * 1000) {
-      return res.forbidden({
-        message: 'Token expired',
-      });
-    }
-
-    req.user = auth.userRepository
-      .createQueryBuilder(auth.userRepository.metadata.targetName)
-      .where('id = :id', { id: payload.id })
-      .getOne();
-    if (!req.user) {
-      return res.notFound({
-        message: 'User not found',
-      });
-    }
-
-    next();
-  } catch (e) {
-    return res.unauthorized({
-      message: 'Unauthorized',
     });
   }
 }

@@ -53,22 +53,22 @@ class User extends typeorm.BaseEntity {
         logging: true,
         synchronize: true,
       },
-      // redis: {
-      //   url: process.env.REDIS_URL as string,
-      //   password: process.env.REDIS_PASSWORD as string,
-      // },
-      // smtp: {
-      //   host: process.env.SMTP_HOST as string,
-      //   port: Number(process.env.SMTP_PORT),
-      //   auth: {
-      //     user: process.env.SMTP_USER as string,
-      //     pass: process.env.SMTP_PASSWORD as string,
-      //   },
-      //   from: process.env.SMTP_FROM as string,
-      // },
-      // mongo: {
-      //   url: process.env.MONGO_URL as string,
-      // },
+      redis: {
+        url: process.env.REDIS_URL as string,
+        password: process.env.REDIS_PASSWORD as string,
+      },
+      smtp: {
+        host: process.env.SMTP_HOST as string,
+        port: Number(process.env.SMTP_PORT),
+        auth: {
+          user: process.env.SMTP_USER as string,
+          pass: process.env.SMTP_PASSWORD as string,
+        },
+        from: process.env.SMTP_FROM as string,
+      },
+      mongo: {
+        url: process.env.MONGO_URL as string,
+      },
       auth: {
         accessTokenSecret: 'secret',
         refreshTokenSecret: 'secret',
@@ -120,7 +120,7 @@ class User extends typeorm.BaseEntity {
     (_req, res) => {
       res.ok('Cool path');
     },
-    ['log']
+    ['log', 'auth']
   );
   Router.group(
     (router) => {
