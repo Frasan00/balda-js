@@ -20,7 +20,9 @@ declare global {
       getUser<T>(): T;
     }
 
-    export interface Response {
+    interface NextFunction {}
+
+    interface Response {
       continue: () => void;
       switchProtocol: () => void;
       processing: () => void;

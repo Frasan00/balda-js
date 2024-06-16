@@ -1,8 +1,10 @@
+import * as QueryString from 'qs';
+import QueryString__default from 'qs';
+import * as express_serve_static_core from 'express-serve-static-core';
+import { ParamsDictionary } from 'express-serve-static-core';
 import express from 'express';
 import * as typeorm from 'typeorm';
 import typeorm__default, { DataSource } from 'typeorm';
-import { ParamsDictionary } from 'express-serve-static-core';
-import QueryString from 'qs';
 import mongoose from 'mongoose';
 import redis, { RedisClientOptions } from 'redis';
 import SMTPTransport from 'nodemailer/lib/smtp-transport';
@@ -24,6 +26,8 @@ declare global {
             pickEntityValues: <T extends typeorm.BaseEntity, K extends keyof T>(entity: new () => T, keys: K[]) => Only<T, K>;
             user: GenericUser;
             getUser<T>(): T;
+        }
+        interface NextFunction {
         }
         interface Response {
             continue: () => void;
@@ -303,7 +307,7 @@ declare class Server {
      */
     seasonDeleteCRUD<T extends typeorm__default.BaseEntity>(entity: new () => T, editDeleteCrud: EditDeleteType<T>): void;
     router(): express.Router;
-    use(...handlers: express.RequestHandler<ParamsDictionary, any, any, QueryString.ParsedQs, Record<string, any>>[]): express.Application;
+    use(...handlers: express.RequestHandler<ParamsDictionary, any, any, QueryString__default.ParsedQs, Record<string, any>>[]): express.Application;
     useCors(corsOptions?: cors.CorsOptions): express.Application;
     protected registerAuthRoutes(): void;
     protected authMiddleware(req: express.Request, res: express.Response, next: express.NextFunction): Promise<void>;
@@ -316,7 +320,7 @@ declare enum HTTPRequestMethods {
     patch = "patch",
     delete = "delete"
 }
-declare class Router {
+declare class Router$1 {
     protected server: Server;
     protected internalPrefix?: string;
     protected middlewares?: string[];
@@ -328,7 +332,7 @@ declare class Router {
      * @returns void
      */
     setServer(server: Server): void;
-    group(cb: (router: Router) => void, prefix?: string, middlewares?: string[]): Router;
+    group(cb: (router: Router$1) => void, prefix?: string, middlewares?: string[]): Router$1;
     get(path: string, controller: express.RequestHandler, middlewares?: string[]): void;
     post(path: string, controller: express.RequestHandler, middlewares?: string[]): void;
     put(path: string, controller: express.RequestHandler, middlewares?: string[]): void;
@@ -339,10 +343,14 @@ declare class Router {
 }
 
 declare const _default: {
-    Logger: winston.Logger;
     Server: typeof Server;
-    createServer: typeof Server.create;
-    router: Router;
 };
 
-export { _default as default };
+declare const Logger: winston.Logger;
+declare const createServer: typeof Server.create;
+declare const Router: Router$1;
+declare const Request: express.Request<express_serve_static_core.ParamsDictionary, any, any, QueryString.ParsedQs, Record<string, any>>;
+declare const Response: express.Response<any, Record<string, any>>;
+declare const Application: express.Application;
+
+export { Application, Logger, Request, Response, Router, createServer, _default as default };

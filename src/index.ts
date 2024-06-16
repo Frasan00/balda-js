@@ -1,9 +1,9 @@
-import Logger from '../Logger';
+import logger from '../Logger';
 import Server from './Server/Server';
 import * as typeorm from 'typeorm';
 import 'reflect-metadata';
 import express from './Server/Customization';
-import Router from './Router/Router';
+import router from './Router/Router';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -115,6 +115,14 @@ class User extends typeorm.BaseEntity {
 
   server.makeCRUD(User);
   server.seasonIndexCRUD(User, {
+    beforeFetch: async (_req) => {
+      console.log('Before fetch');
+    },
+    duringFetch: async (_req, indexQueryBuilder, _res) => {
+      console.log('During fetch');
+      const queryBuilder = indexQueryBuilder();
+      return queryBuilder.where('active = :active', { active: true }).getMany();
+    },
     afterFetch: async (req, _data, res) => {
       const user = req.getUser<User>();
       return res.ok('User retrieved, ' + JSON.stringify(user));
@@ -122,18 +130,18 @@ class User extends typeorm.BaseEntity {
     middlewares: ['log'],
   });
 
-  Router.get(
+  router.get(
     '/cool-path',
     (_req, res) => {
       res.ok('Cool path');
     },
     ['log', 'auth']
   );
-  Router.group(
+  router.group(
     (router) => {
       router.get(
         '/internal-cool-path',
-        (_eq, res) => {
+        (_req, res) => {
           res.ok('Internal cool path');
         },
         ['log']
@@ -151,8 +159,12 @@ class User extends typeorm.BaseEntity {
 })();
 
 export default {
-  Logger,
   Server,
-  createServer: Server.create,
-  router: Router,
 };
+
+export const Logger = logger;
+export const createServer = Server.create;
+export const Router = router;
+export const Request = express.request;
+export const Response = express.response;
+export const Application = express.application;

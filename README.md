@@ -1,27 +1,177 @@
-# Framework-bello
+# Orbit-js
 
-### Properties
+- Full fletched backend framework built on top of express
+- Power up your development with a feature rich environment
 
-#### Response types
 
-- Responses based on textual methods es. response.internalServerError()
+## Installation
+```shell
+    npm install orbit-js
+    
+    yarn add orbit-js
+```
 
-#### Automated cruds for given models
 
-- With possibility of seasoning for the base cruds
+## Server setup
 
-#### Required tsconfig
-"emitDecoratorMetadata": true,
-"experimentalDecorators": true,
+- Start-up a server with orbit-js is pretty straight forward
+- This is an example of a minimalistic setup that creates a server on port 80
+```typescript
+import { createServer } from 'orbit-js';
+import express from 'express';
 
-#### Parse between typescript interfaces and typeorm models
+// The createServer method takes optional settings for services and behavior
+const server = await createServer({
+    port: 80, // default 80
+    host: '0.0.0.0', // default '0.0.0.0'
+    expressInstance: express(), // optionally you can pass your express application instance and integrate it with the main server
+});
+```
 
-- Avoids the need to specify with decorators column types
+## Server specific features
 
-index GET / [() => {}]? Auth? seasonHook => (req, res) => {}?
-show GET /:id
-POST /
-PATCH /:id
-DELETE /:id
+- [Request](#request)
+- [Response](#response)
+- [middlewares](#middlewares)
+- [Make-crud](#make-crud)
+- [Season-base-cruds](#season-base-cruds)
 
-GET /cards/user () => {} [() => {}]
+
+## Services
+Orbit-js has built-in support for different types of services (all included services are optional)
+
+- [Typeorm](./Docs/Services/TYPEORM.MD)
+- MORE COMING!!
+
+
+### Request
+- The Request type has been revisited in order to support some extra features
+```typescript
+// request has a user type that can be accessed in every moment
+req.user = this.server.sql.getRepository()
+    .createQueryBuilder(this.auth.userRepository.metadata.targetName)
+    .where('id = :id', { id: payload.id })
+    .getOne();
+
+// you can also get the user using a custom type to specify the type
+const user = req.getUser<User>();
+
+// using pickEntityValues you can take values from request queryParams and body that are included in the Entity type
+const data = req.pickEntityValues(User, ['name', 'email']);
+```
+
+
+### Response
+- Express Responses have been extended in order to server text based methods for http responses
+```typescript
+res.continue();
+res.switchProtocol();
+res.processing();
+res.earlyHints();
+
+res.ok({});
+res.created({});
+res.noContent();
+res.partialContent({});
+
+res.multipleChoices({});
+res.movedPermanently({});
+res.seeOther({});
+res.found({});
+
+res.badRequest({});
+res.unauthorized({});
+res.forbidden({});
+res.notFound({});
+res.requestTimeout({});
+res.conflict({});
+res.unprocessableEntity({});
+res.tooManyRequests({});
+
+res.internalServerError({});
+res.notImplemented({});
+res.badGateway({});
+res.serviceUnavailable({});
+```
+
+
+### Middlewares
+- You can both register a global middleware that runs on each request or a middleware that you can reference by it's name as a string in the route definitions
+```typescript
+server.registerGlobalMiddleware(async (req, _res, next) => {
+    const data = req.pickEntityValues(User, ['name', 'email']);
+    console.log('Data: ', data.email);
+
+    next();
+});
+
+server.registerMiddleware({
+    name: 'log',
+    handler: (_req, _res, next: express.NextFunction) => {
+        console.log('Middleware log, fine until now');
+        next();
+    },
+});
+```
+
+
+### Make CRUD
+- You can automate base CRUDs operations on typeorm models with just a function
+```typescript
+import * as typeorm from 'typeorm';
+import 'reflect-metadata';
+
+// user.ts
+@typeorm.Entity()
+class User extends typeorm.BaseEntity {
+  @typeorm.PrimaryGeneratedColumn()
+  id: number;
+
+  @typeorm.Column({ type: 'varchar' })
+  name: string;
+
+  @typeorm.Column({ type: 'boolean' })
+  active: boolean;
+
+  @typeorm.Column({ type: 'varchar' })
+  email: string;
+
+  @typeorm.Column({ type: 'varchar' })
+  password: string;
+}
+
+// index.ts
+
+// With the model you can also give the middlewares shared between all basic cruds and a version that will be appended to the root of the path
+server.makeCRUD(User, [], 'v2'); // generates for routes with basic controllers that allow to GET, POST, PATCH and DELETE the model resources
+// generates
+/*
+* GET /v2/users (index)
+* GET /v2/users/:id (show)
+* POST /v2/users (create)
+* PATCH /v2/users/:id (update)
+* DELETE /v2/users/:id (delete)
+*/
+```
+
+
+### Season Base CRUDS
+- You can customize every base CRUD operation generated with server.makeCRUD with custom hooks
+```typescript
+server.seasonIndexCRUD(User, {
+beforeFetch: async (_req) => {
+    console.log('Before fetch');
+},
+// Must return something coerent with the CRUD type (ex. index must return an array and show must return a single record)
+duringFetch: async (_req, indexQueryBuilder, _res) => {
+    console.log('During fetch');
+    const queryBuilder = indexQueryBuilder();
+    return queryBuilder.where('active = :active', { active: true }).getMany();
+},
+afterFetch: async (req, _data, res) => {
+    const user = req.getUser<User>();
+    return res.ok('User retrieved, ' + JSON.stringify(user));
+},
+middlewares: ['log'],
+});
+```
