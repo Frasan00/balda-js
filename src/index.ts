@@ -5,6 +5,7 @@ import 'reflect-metadata';
 import express from './Server/Customization';
 import router from './Router/Router';
 import dotenv from 'dotenv';
+import vine from '@vinejs/vine';
 dotenv.config();
 
 const type = (process.env.DB_TYPE as 'mysql' | 'mariadb') || 'postgres';
@@ -94,11 +95,11 @@ class User extends typeorm.BaseEntity {
   });
 
   server.registerGlobalMiddleware(async (req, _res, next) => {
-    interface Example {
-      name: string;
-      email: string;
-    }
-
+    const myValidator= server.createValidator((vine) => {
+      return vine.compile(vine.object({ name: vine.string(), email: vine.string() }));
+    });
+    const body = await req.validateBody(myValidator);
+    const qs = await req.validateQueryStrings(myValidator);
     const data = req.pickEntityValues(User, ['name', 'email']);
     console.log('Data: ', data.email);
 

@@ -5,6 +5,8 @@ import { ParamsDictionary } from 'express-serve-static-core';
 import express from 'express';
 import * as typeorm from 'typeorm';
 import typeorm__default, { DataSource } from 'typeorm';
+import * as vine from '@vinejs/vine';
+import { SchemaTypes } from '@vinejs/vine/build/src/types';
 import mongoose from 'mongoose';
 import redis, { RedisClientOptions } from 'redis';
 import SMTPTransport from 'nodemailer/lib/smtp-transport';
@@ -14,6 +16,8 @@ import stream from 'stream';
 import Mail from 'nodemailer/lib/mailer';
 import * as winston from 'winston';
 
+type VineCompileReturnType<T extends SchemaTypes> = ReturnType<typeof vine.default.compile<T>>;
+type VineValidateReturnType<T extends SchemaTypes> = ReturnType<typeof vine.default.validate<T>>;
 type GenericUser = {
     [key: string]: any;
 };
@@ -26,6 +30,9 @@ declare global {
             pickEntityValues: <T extends typeorm.BaseEntity, K extends keyof T>(entity: new () => T, keys: K[]) => Only<T, K>;
             user: GenericUser;
             getUser<T>(): T;
+            validationError?: Error;
+            validateBody: <T extends SchemaTypes>(schema: VineCompileReturnType<T>) => Promise<VineValidateReturnType<T>>;
+            validateQueryStrings: <T extends SchemaTypes>(schema: VineCompileReturnType<T>) => Promise<VineValidateReturnType<T>>;
         }
         interface NextFunction {
         }
@@ -50,6 +57,7 @@ declare global {
             conflict: (body: any) => void;
             unprocessableEntity: (body: any) => void;
             tooManyRequests: (body: any) => void;
+            paymentRequired: (body: any) => void;
             internalServerError: (body: any) => void;
             notImplemented: (body: any) => void;
             badGateway: (body: any) => void;
@@ -237,11 +245,11 @@ declare class Server {
      */
     static create(serverOptions?: ServerOptions): Promise<Server>;
     protected static parseCronExpression(cronExpression: string): {
-        minute: number | null;
-        hour: number | null;
-        dayOfMonth: number | null;
-        month: number | null;
-        dayOfWeek: number | null;
+        minute: number;
+        hour: number;
+        dayOfMonth: number;
+        month: number;
+        dayOfWeek: number;
     };
     /**
      * @description - Creates a cron job that is checked every minute if can be executed

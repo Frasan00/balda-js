@@ -1,5 +1,5 @@
 import { DataSource, DataSourceOptions } from 'typeorm';
-import ServerOptions, { SwaggerOptions } from './ServerTypes';
+import ServerOptions from './ServerTypes';
 import { createClient, RedisClientOptions, RedisClientType } from 'redis';
 import mongoose from 'mongoose';
 import nodemailer from 'nodemailer';
@@ -112,7 +112,7 @@ async function parseMongoService(
   }
 }
 
-async function parseRedisService(redisOptions: RedisClientOptions) {
+async function parseRedisService(redisOptions: RedisClientOptions): Promise<RedisClientType<any>> {
   try {
     const redisClient = await createClient({
       ...redisOptions,
@@ -127,7 +127,7 @@ async function parseRedisService(redisOptions: RedisClientOptions) {
       Logger.info('Redis disconnected');
     });
 
-    return redisClient;
+    return redisClient as unknown as RedisClientType<any>;
   } catch (error) {
     throw new Error('Redis connection failed, ' + String(error));
   }
@@ -152,10 +152,14 @@ async function parseSqlService(sqlOptions: DataSourceOptions): Promise<DataSourc
 
 export function errorMiddleware(
   error: any,
-  _req: express.Request,
+  req: express.Request,
   res: express.Response,
   _next: express.NextFunction
 ) {
+  if (req.validationError) {
+    return res.unprocessableEntity(req.validationError);
+  }
+
   Logger.error(error);
   return res.internalServerError({ error: 'Internal server error', message: String(error) });
 }

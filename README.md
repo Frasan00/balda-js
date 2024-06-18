@@ -33,6 +33,7 @@ const server = await createServer({
 - [Error-handling](#error-handling)
 - [Request](#request)
 - [Response](#response)
+- [Validation](#validation)
 - [Routes](#routes)
 - [middlewares](#middlewares)
 - [Make-crud](#make-crud)
@@ -98,6 +99,18 @@ res.internalServerError({});
 res.notImplemented({});
 res.badGateway({});
 res.serviceUnavailable({});
+```
+
+## Validation
+- Orbit.js uses the popular @vinejs/vine library for body and qs validation, you do not need to having it installed yourself you can use server.createValidator to receive in the callback a vine instance to use
+```typescript
+const myValidator= server.createValidator((vine) => {
+    return vine.compile(vine.object({ name: vine.string(), email: vine.string() }));
+});
+
+// type inferred by the schema
+const body = await req.validateBody(myValidator);
+const qs = await req.validateQueryStrings(myValidator);
 ```
 
 ## Router

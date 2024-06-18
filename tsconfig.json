@@ -13,6 +13,8 @@
       "emitDecoratorMetadata": true,
       "experimentalDecorators": true,
       "strictPropertyInitialization": false,
+      "strictNullChecks": false,
+      "noEmit": true,
     },
     "include": ["src/**/*.ts", "test/**/*.ts"],
     "exclude": ["node_modules", "lib", "dist", "build"]

@@ -1,5 +1,12 @@
 import express from 'express';
 import * as typeorm from 'typeorm';
+import { errors } from '@vinejs/vine';
+import * as vine from '@vinejs/vine';
+import { SchemaTypes } from '@vinejs/vine/build/src/types';
+
+export type ReturnTypeObject<Properties extends Record<string, SchemaTypes>> = ReturnType<typeof vine.default.object<Properties>>
+export type VineCompileReturnType<T extends SchemaTypes> = ReturnType<typeof vine.default.compile<T>>;
+export type VineValidateReturnType<T extends SchemaTypes> = ReturnType<typeof vine.default.validate<T>>;
 
 type GenericUser = {
   [key: string]: any;
@@ -18,6 +25,13 @@ declare global {
       ) => Only<T, K>;
       user: GenericUser;
       getUser<T>(): T;
+      validationError?: Error;
+      validateBody: <T extends SchemaTypes>(
+        schema: VineCompileReturnType<T>
+      ) => Promise<VineValidateReturnType<T>>;
+      validateQueryStrings: <T extends SchemaTypes>(
+        schema: VineCompileReturnType<T>
+      ) => Promise<VineValidateReturnType<T>>;
     }
 
     interface NextFunction {}
@@ -46,6 +60,7 @@ declare global {
       conflict: (body: any) => void;
       unprocessableEntity: (body: any) => void;
       tooManyRequests: (body: any) => void;
+      paymentRequired: (body: any) => void;
 
       internalServerError: (body: any) => void;
       notImplemented: (body: any) => void;
@@ -76,6 +91,46 @@ express.request.pickEntityValues = function <T extends object, K extends keyof T
   });
 
   return result as Only<T, K>;
+};
+
+/**
+ * @description Validates the request body against the given schema, if the validation fails, the request will return 422 Unprocessable Entity
+ * @param schema - Schema to validate the request body, result of vine.compile
+ * @returns
+ */
+express.request.validateBody = async function <T extends SchemaTypes>(
+  schema: VineCompileReturnType<T>
+): Promise<VineValidateReturnType<T>> {
+  try {
+    return await schema.validate(this.body);
+  } catch (error: any) {
+    if (error instanceof errors.E_VALIDATION_ERROR) {
+      this.validationError = error;
+      throw error;
+    }
+
+    throw new Error(error);
+  }
+};
+
+/**
+ * @description Validates the request query strings against the given schema, if the validation fails, the request will return 422 Unprocessable Entity
+ * @param schema - Schema to validate the request query strings, result of vine.compile
+ * @returns
+ */
+express.request.validateQueryStrings = async function <T extends SchemaTypes>(
+  schema: VineCompileReturnType<T>
+): Promise<VineValidateReturnType<T>> {
+  try {
+    return await schema.validate(this.query);
+  } catch (error: any) {
+    if (error instanceof errors.E_VALIDATION_ERROR) {
+      this.validationError = error;
+      throw error;
+    }
+
+    throw new Error(error);
+  }
 };
 
 express.request.user = {};
@@ -143,6 +198,10 @@ express.response.badRequest = function (body?: any) {
 
 express.response.unauthorized = function (body?: any) {
   return this.status(401).send(body);
+};
+
+express.response.paymentRequired = function (body?: any) {
+  return this.status(402).send(body);
 };
 
 express.response.forbidden = function (body?: any) {
