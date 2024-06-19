@@ -4,8 +4,8 @@ import * as typeorm from 'typeorm';
 import 'reflect-metadata';
 import express from './Server/Customization';
 import router from './Router/Router';
+import { createValidator as CreateValidator } from './Validator/validator';
 import dotenv from 'dotenv';
-import vine from '@vinejs/vine';
 dotenv.config();
 
 const type = (process.env.DB_TYPE as 'mysql' | 'mariadb') || 'postgres';
@@ -58,15 +58,15 @@ class User extends typeorm.BaseEntity {
         url: process.env.REDIS_URL as string,
         password: process.env.REDIS_PASSWORD as string,
       },
-      smtp: {
-        host: process.env.SMTP_HOST as string,
-        port: Number(process.env.SMTP_PORT),
-        auth: {
-          user: process.env.SMTP_USER as string,
-          pass: process.env.SMTP_PASSWORD as string,
-        },
-        from: process.env.SMTP_FROM as string,
-      },
+      // smtp: {
+      //   host: process.env.SMTP_HOST as string,
+      //   port: Number(process.env.SMTP_PORT),
+      //   auth: {
+      //     user: process.env.SMTP_USER as string,
+      //     pass: process.env.SMTP_PASSWORD as string,
+      //   },
+      //   from: process.env.SMTP_FROM as string,
+      // },
       mongo: {
         url: process.env.MONGO_URL as string,
       },
@@ -95,7 +95,7 @@ class User extends typeorm.BaseEntity {
   });
 
   server.registerGlobalMiddleware(async (req, _res, next) => {
-    const myValidator= server.createValidator((vine) => {
+    const myValidator = createValidator((vine) => {
       return vine.compile(vine.object({ name: vine.string(), email: vine.string() }));
     });
     const body = await req.validateBody(myValidator);
@@ -169,3 +169,4 @@ export const Router = router;
 export const Request = express.request;
 export const Response = express.response;
 export const Application = express.application;
+export const createValidator = CreateValidator;

@@ -6,6 +6,7 @@ import express from 'express';
 import * as typeorm from 'typeorm';
 import typeorm__default, { DataSource } from 'typeorm';
 import * as vine from '@vinejs/vine';
+import vine__default from '@vinejs/vine';
 import { SchemaTypes } from '@vinejs/vine/build/src/types';
 import mongoose from 'mongoose';
 import redis, { RedisClientOptions } from 'redis';
@@ -350,6 +351,13 @@ declare class Router$1 {
     static validatePath(str: string): string;
 }
 
+/**
+ * @description - Creates a validator for a given schema
+ * @param schemaBuilder - The schema builder function to create the schema
+ * @returns - The compiled schema ready to be used
+ */
+declare function createValidator$1<T extends SchemaTypes>(schemaBuilder: (vineInstance: typeof vine__default) => VineCompileReturnType<T>): VineCompileReturnType<T>;
+
 declare const _default: {
     Server: typeof Server;
 };
@@ -360,5 +368,6 @@ declare const Router: Router$1;
 declare const Request: express.Request<express_serve_static_core.ParamsDictionary, any, any, QueryString.ParsedQs, Record<string, any>>;
 declare const Response: express.Response<any, Record<string, any>>;
 declare const Application: express.Application;
+declare const createValidator: typeof createValidator$1;
 
-export { Application, Logger, Request, Response, Router, createServer, _default as default };
+export { Application, Logger, Request, Response, Router, createServer, createValidator, _default as default };

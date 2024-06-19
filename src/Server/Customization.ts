@@ -4,9 +4,15 @@ import { errors } from '@vinejs/vine';
 import * as vine from '@vinejs/vine';
 import { SchemaTypes } from '@vinejs/vine/build/src/types';
 
-export type ReturnTypeObject<Properties extends Record<string, SchemaTypes>> = ReturnType<typeof vine.default.object<Properties>>
-export type VineCompileReturnType<T extends SchemaTypes> = ReturnType<typeof vine.default.compile<T>>;
-export type VineValidateReturnType<T extends SchemaTypes> = ReturnType<typeof vine.default.validate<T>>;
+export type ReturnTypeObject<Properties extends Record<string, SchemaTypes>> = ReturnType<
+  typeof vine.default.object<Properties>
+>;
+export type VineCompileReturnType<T extends SchemaTypes> = ReturnType<
+  typeof vine.default.compile<T>
+>;
+export type VineValidateReturnType<T extends SchemaTypes> = ReturnType<
+  typeof vine.default.validate<T>
+>;
 
 type GenericUser = {
   [key: string]: any;

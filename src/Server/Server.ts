@@ -8,8 +8,6 @@ import mongoose from 'mongoose';
 import redis from 'redis';
 import Router from '../Router/Router';
 import { ServicesType, errorMiddleware, parseServices } from './ServerUtils';
-import vine from '@vinejs/vine';
-import { SchemaTypes } from '@vinejs/vine/build/src/types';
 import {
   CRUDType,
   DeleteType,
@@ -568,15 +566,6 @@ export default class Server {
 
       return res.ok(response);
     });
-  }
-
-  /**
-   * @description - Creates a validator for a given schema
-   * @param schemaBuilder - The schema builder function to create the schema
-   * @returns - The compiled schema ready to be used
-   */
-  public createValidator<T extends SchemaTypes>(schemaBuilder: (vineInstance: typeof vine) => VineCompileReturnType<T>): VineCompileReturnType<T> {
-    return schemaBuilder(vine);
   }
 
   protected async authMiddleware(

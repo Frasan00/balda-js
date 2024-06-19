@@ -102,9 +102,11 @@ res.serviceUnavailable({});
 ```
 
 ## Validation
-- Orbit.js uses the popular @vinejs/vine library for body and qs validation, you do not need to having it installed yourself you can use server.createValidator to receive in the callback a vine instance to use
+- Orbit.js uses the popular @vinejs/vine library for body and qs validation, you do not need to having it installed yourself you can use createValidator to receive in the callback a vine instance to use
 ```typescript
-const myValidator= server.createValidator((vine) => {
+import { createValidator } from 'orbit-js';
+
+const myValidator = createValidator((vine) => {
     return vine.compile(vine.object({ name: vine.string(), email: vine.string() }));
 });
 
@@ -208,19 +210,19 @@ server.makeCRUD(User, [], 'v2'); // generates for routes with basic controllers 
 - You can customize every base CRUD operation generated with server.makeCRUD with custom hooks
 ```typescript
 server.seasonIndexCRUD(User, {
-beforeFetch: async (_req) => {
-    console.log('Before fetch');
-},
-// Must return something coerent with the CRUD type (ex. index must return an array and show must return a single record)
-duringFetch: async (_req, indexQueryBuilder, _res) => {
-    console.log('During fetch');
-    const queryBuilder = indexQueryBuilder();
-    return queryBuilder.where('active = :active', { active: true }).getMany();
-},
-afterFetch: async (req, _data, res) => {
-    const user = req.getUser<User>();
-    return res.ok('User retrieved, ' + JSON.stringify(user));
-},
-middlewares: ['log'],
+    beforeFetch: async (_req) => {
+        console.log('Before fetch');
+    },
+    // Must return something coerent with the CRUD type (ex. index must return an array and show must return a single record)
+    duringFetch: async (_req, indexQueryBuilder, _res) => {
+        console.log('During fetch');
+        const queryBuilder = indexQueryBuilder();
+        return queryBuilder.where('active = :active', { active: true }).getMany();
+    },
+    afterFetch: async (req, _data, res) => {
+        const user = req.getUser<User>();
+        return res.ok('User retrieved, ' + JSON.stringify(user));
+    },
+    middlewares: ['log'],
 });
 ```
