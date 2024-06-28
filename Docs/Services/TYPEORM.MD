@@ -1,6 +1,6 @@
 # Typeorm
 
-- Orbit-js is fully integrated with the typerom library for database interactions
+- balda is fully integrated with the typerom library for database interactions
 
 ## prerequisites
 - Before using the typeorm integration you must download the drivers for it
@@ -37,10 +37,10 @@ npm install pg mysql2
 yarn add pg mysql2
 ```
 
-## Setup typeorm service for sql databases on orbit-js server
+## Setup typeorm service for sql databases on balda server
 
 ```typescript
-import { createServer } from 'orbit-js';
+import { createServer } from 'balda';
 
 const server = await createServer({
     port: 80,
@@ -56,6 +56,7 @@ const server = await createServer({
             entities: [],
             logging: true,
             synchronize: false,
+            <Every other typeorm connection option>
       },
     },
      onServiceStartUp: {

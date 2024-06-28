@@ -1,8 +1,8 @@
 {
-  "name": "orbit-js",
+  "name": "balda",
   "version": "1.0.0",
   "main": "lib/index.js",
-  "repository": "https://github.com/Frasan00/orbit-js.git",
+  "repository": "https://github.com/Frasan00/balda.git",
   "author": "Frasan00 <francesco.sangiovanni.7@gmail.com>",
   "scripts": {
     "watch": "tsc --watch",

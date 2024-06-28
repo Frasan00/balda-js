@@ -1,23 +1,22 @@
-# Orbit-js
+# Balda-js
 
 - Full fletched backend framework built on top of express
 - Power up your development with a feature rich environment
 
-
 ## Installation
 ```shell
-    npm install orbit-js
+    npm install balda
     
-    yarn add orbit-js
+    yarn add balda
 ```
 
 
 ## Server setup
 
-- Start-up a server with orbit-js is pretty straight forward
+- Start-up a server with balda is pretty straight forward
 - This is an example of a minimalistic setup that creates a server on port 80
 ```typescript
-import { createServer } from 'orbit-js';
+import { createServer } from 'balda';
 import express from 'express';
 
 // The createServer method takes optional settings for services and behavior
@@ -41,10 +40,15 @@ const server = await createServer({
 
 
 ## Services
-Orbit-js has built-in support for different types of services (all included services are optional)
+Balda has built-in support for different types of services (all included services are optional)
+Since all services are optional you must download packages and drivers for each service you decide to use (more details in each service readme file)
 
 - [Typeorm](./Docs/Services/TYPEORM.MD)
-- MORE COMING!!
+- [Mongo](./Docs/Services/MONGO.MD)
+- [Redis](./Docs/Services/REDIS.MD)
+- [SMTP](./Docs/Services/SMTP.MD)
+- [Auth] - Experimental not yet stable
+- MORE TO COME IN THE FUTURE !!!
 
 
 ## Error Handling
@@ -102,9 +106,9 @@ res.serviceUnavailable({});
 ```
 
 ## Validation
-- Orbit.js uses the popular @vinejs/vine library for body and qs validation, you do not need to having it installed yourself you can use createValidator to receive in the callback a vine instance to use
+- Balda uses the popular @vinejs/vine library for body and qs validation, you do not need to having it installed yourself you can use createValidator to receive in the callback a vine instance to use
 ```typescript
-import { createValidator } from 'orbit-js';
+import { createValidator } from 'balda';
 
 const myValidator = createValidator((vine) => {
     return vine.compile(vine.object({ name: vine.string(), email: vine.string() }));
@@ -118,7 +122,7 @@ const qs = await req.validateQueryStrings(myValidator);
 ## Router
 - There is a built in router that makes easier to define nested or more complex route hierarchy
 ```typescript
-import { Router } from 'orbit-js';
+import { Router } from 'balda';
 
 // simple route definition
 Router.get(
