@@ -1,4 +1,4 @@
-import express, { ReturnTypeObject, VineCompileReturnType } from './Customization';
+import express from './Customization';
 import { ParamsDictionary } from 'express-serve-static-core';
 import QueryString from 'qs';
 import ServerOptions from './ServerTypes';
@@ -26,7 +26,6 @@ import {
 } from '../CRUD/EditCrudTypes';
 import Mailer from '../Mailer/Mailer';
 import { registerOrUpdateCRUDRoutes } from '../CRUD/CrudUtils';
-import expressOasGenerator, { SPEC_OUTPUT_FILE_BEHAVIOR } from 'express-oas-generator';
 import AuthService from '../Auth/auth';
 import bodyParser from 'body-parser';
 import Logger from '../../Logger';
@@ -47,52 +46,6 @@ export default class Server {
   private constructor(services: ServicesType, serverOptions: ServerOptions) {
     this.app = serverOptions?.expressInstance || express();
     Router.setServer(this);
-    if (!!serverOptions?.services?.swagger) {
-      expressOasGenerator.init(this.app as express.Express, {
-        schemes: ['http'],
-        responses: {
-          200: {
-            description: 'Success',
-          },
-          400: {
-            description: 'Bad request',
-          },
-          401: {
-            description: 'Unauthorized',
-          },
-          403: {
-            description: 'Forbidden',
-          },
-          404: {
-            description: 'Not found',
-          },
-          500: {
-            description: 'Internal server error',
-          },
-        },
-        info: {
-          license: {
-            name: serverOptions.services.swagger.licence?.name || 'MIT',
-            url:
-              serverOptions.services.swagger.licence?.url || 'https://opensource.org/licenses/MIT',
-          },
-          title: serverOptions.services.swagger.title || 'API Documentation',
-          version: serverOptions.services.swagger.version || '1.0.0',
-          description:
-            serverOptions.services.swagger.description ||
-            'Auto-generated API documentation using express-oas-generator',
-        },
-        // basePath: serverOptions.services.swagger.customSwaggerDefinitionPath,
-        specOutputFileBehavior: SPEC_OUTPUT_FILE_BEHAVIOR.PRESERVE,
-        securityDefinitions: {
-          Bearer: {
-            type: 'token',
-            name: 'Authorization',
-            in: 'header',
-          },
-        },
-      });
-    }
 
     // base middlewares
     this.app.use(bodyParser.urlencoded({ extended: false }));
@@ -363,9 +316,9 @@ export default class Server {
       ...baseCrud,
       storeCrud: {
         ...storeCrud,
-        beforeFetch: editStoreCrud.beforeCreate || storeCrud.beforeCreate,
-        duringFetch: editStoreCrud.duringCreate || storeCrud.duringCreate,
-        afterFetch: editStoreCrud.afterCreate || storeCrud.afterCreate,
+        beforeCreate: editStoreCrud.beforeCreate || storeCrud.beforeCreate,
+        duringCreate: editStoreCrud.duringCreate || storeCrud.duringCreate,
+        afterCreate: editStoreCrud.afterCreate || storeCrud.afterCreate,
         middlewares: editStoreCrud.middlewares?.length
           ? editStoreCrud.middlewares
           : storeCrud.middlewares,
@@ -399,9 +352,9 @@ export default class Server {
       ...baseCrud,
       updateCrud: {
         ...updateCrud,
-        beforeFetch: editUpdateCrud.beforeUpdate || updateCrud.beforeUpdate,
-        duringFetch: editUpdateCrud.duringUpdate || updateCrud.duringUpdate,
-        afterFetch: editUpdateCrud.afterUpdate || updateCrud.afterUpdate,
+        beforeUpdate: editUpdateCrud.beforeUpdate || updateCrud.beforeUpdate,
+        duringUpdate: editUpdateCrud.duringUpdate || updateCrud.duringUpdate,
+        afterUpdate: editUpdateCrud.afterUpdate || updateCrud.afterUpdate,
         middlewares: editUpdateCrud.middlewares?.length
           ? editUpdateCrud.middlewares
           : updateCrud.middlewares,
@@ -435,9 +388,9 @@ export default class Server {
       ...baseCrud,
       deleteCrud: {
         ...deleteCrud,
-        beforeFetch: editDeleteCrud.beforeDelete || deleteCrud.beforeDelete,
-        duringFetch: editDeleteCrud.duringDelete || deleteCrud.duringDelete,
-        afterFetch: editDeleteCrud.afterDelete || deleteCrud.afterDelete,
+        beforeDelete: editDeleteCrud.beforeDelete || deleteCrud.beforeDelete,
+        duringDeletebeforeDelete: editDeleteCrud.duringDelete || deleteCrud.duringDelete,
+        afterDeletebeforeDelete: editDeleteCrud.afterDelete || deleteCrud.afterDelete,
         middlewares: editDeleteCrud.middlewares?.length
           ? editDeleteCrud.middlewares
           : deleteCrud.middlewares,

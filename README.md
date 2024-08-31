@@ -3,7 +3,7 @@
 - Full fletched backend framework built on top of express
 - Power up your development with a feature rich environment
 
-## Installation
+## Installation (NOT YET RELEASED)
 ```shell
     npm install balda
     
@@ -47,6 +47,7 @@ Since all services are optional you must download packages and drivers for each 
 - [Mongo](./Docs/Services/MONGO.MD)
 - [Redis](./Docs/Services/REDIS.MD)
 - [SMTP](./Docs/Services/SMTP.MD)
+- [ENV](./Docs/Services/ENV.MD)
 - [Auth] - Experimental not yet stable
 - MORE TO COME IN THE FUTURE !!!
 

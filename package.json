@@ -46,8 +46,8 @@
     "@vinejs/vine": "^1.8.0",
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
+    "envitron": "^1.3.2",
     "express": "^4.19.2",
-    "express-oas-generator": "^1.0.46",
     "typeorm": "0.3.20",
     "winston": "^3.13.0"
   },
